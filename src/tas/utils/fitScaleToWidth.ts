@@ -10,3 +10,17 @@ export function fitScaleToWidth(
   if (clientWidth <= 0 || naturalW <= 0) return 1;
   return Math.min(1, (clientWidth - padding) / naturalW);
 }
+
+/** Fit a natural-size canvas into a pane without clipping, capped at 1. */
+export function fitScaleToBox(
+  clientWidth: number,
+  clientHeight: number,
+  naturalW: number,
+  naturalH: number,
+  padding: number,
+): number {
+  const scaleW = fitScaleToWidth(clientWidth, naturalW, padding);
+  if (clientHeight <= 0 || naturalH <= 0) return scaleW;
+  const scaleH = Math.min(1, (clientHeight - padding) / naturalH);
+  return Math.min(scaleW, scaleH);
+}

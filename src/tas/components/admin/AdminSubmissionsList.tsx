@@ -3,7 +3,7 @@
  * Shows submissions for a block with toggleable status tabs
  * (Under Review / Accepted / Reattempt). No status selected → all submissions.
  * "Review" only available for submitted ones.
- * "Withdraw Feedback" for finalized reviews (approved / rejected).
+ * "Withdraw Feedback" only for finalized human-owned reviews.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -17,6 +17,11 @@ import { adminSubmissionsApi } from '../../services/api';
 import { useTasStore } from '../../store/tasStore';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { formatSubmissionStatusLabel } from '../../utils/statusLabels';
+import {
+  canWithdrawQueueRow,
+  queueCurieStatusLabel,
+  queueSourceLabel,
+} from '../../utils/instructorCurieUi';
 import {
   applyStatusTabToSearchParams,
   parseStatus,
@@ -44,8 +49,6 @@ const LINK_ACTION_STYLE: React.CSSProperties = {
   fontWeight: 700,
   textDecoration: 'underline',
 };
-
-const FINALIZED_FEEDBACK = new Set(['approved', 'rejected']);
 
 const WITHDRAW_ERROR_FALLBACK = 'Failed to withdraw feedback. Please try again.';
 
@@ -459,6 +462,8 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
                 <tr style={{ background: '#f5f7fa', borderBottom: '2px solid #dee2e6' }}>
                   <th style={thStyle}>Student Email</th>
                   <th style={thStyle}>Status</th>
+                  <th style={thStyle}>CURIE</th>
+                  <th style={thStyle}>Source</th>
                   <th style={thStyle}>
                     <button
                       type="button"
@@ -490,7 +495,7 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
               </thead>
               <tbody>
                 {submissions.map((sub: any, idx: number) => {
-                  const canWithdraw = FINALIZED_FEEDBACK.has(sub.feedback_status);
+                  const canWithdraw = canWithdrawQueueRow(sub);
                   const rowWithdrawing = isWithdrawing && withdrawTarget?.id === String(sub.id);
 
                   return (
@@ -508,6 +513,15 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
                         <Badge variant={STATUS_BADGE[sub.status] ?? 'secondary'}>
                           {formatSubmissionStatusLabel(sub.status)}
                         </Badge>
+                      </td>
+                      <td style={tdStyle}>
+                        <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
+                        {sub.instructor_form_locked && (
+                          <div className="small text-muted">Locked</div>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <span className="small">{queueSourceLabel(sub.feedback_source)}</span>
                       </td>
                       <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }}>
                         {sub.submission_date

@@ -19,18 +19,22 @@ import { PdfPoller } from './PdfPoller';
 import { StudentFeedbackPanel } from './StudentFeedbackPanel';
 import { StudentSubmissionDetail } from './StudentSubmissionDetail';
 import { SubmissionHistory } from './SubmissionHistory';
+import { CurieReviewScreen } from './CurieReviewScreen';
 import { RequiredFieldsModal } from './RequiredFieldsModal';
 import { BackNavigationModal } from './BackNavigationModal';
 import { OptionalFieldsSubmitModal } from './OptionalFieldsSubmitModal';
 import { ConfirmSubmitModal } from './ConfirmSubmitModal';
 import { useTasStore } from '../store/tasStore';
 import { useBackNavigationGuard } from '../hooks/useBackNavigationGuard';
+import { usePendingReviewPolling } from '../hooks/usePendingReviewPolling';
 import { submissionsApi, formatApiError } from '../services/api';
+import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import { getActiveFields, isFieldEmpty } from '../utils/activeFields';
 import { resolveFieldLayout, FIELD_TEXT_FONT_FAMILY } from '../utils/fieldLayout';
 import { clampFormDataToFields } from '../utils/clampTextToField';
-import type { FormField, SubmissionVersion } from '../types';
+import { capacitySubmitPlan } from '../utils/capacitySubmit';
+import type { FormField, LearnerCurieReview, SubmissionVersion } from '../types';
 
 const SUBMIT_GREEN = '#69AB4A';
 
@@ -65,6 +69,8 @@ export const TasApp: React.FC = () => {
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [optionalFieldsModalOpen, setOptionalFieldsModalOpen] = useState(false);
   const [confirmSubmitModalOpen, setConfirmSubmitModalOpen] = useState(false);
+  const [learnerReview, setLearnerReview] = useState<LearnerCurieReview | null>(null);
+  const pendingSubmitAnswers = useRef<Record<string, string> | null>(null);
 
   // ── Responsive detection ───────────────────────────────────────────────────
   useEffect(() => {
@@ -124,32 +130,65 @@ export const TasApp: React.FC = () => {
     }
   }, [selectedTemplate]);
 
-  // Refetch submission after student submit so instructor feedback appears without reload
+  // Pending-only refresh. Stops on ready/failed or unmount; refetches on focus.
+  const shouldPoll = Boolean(
+    submission?.id
+    && submission.status !== 'draft'
+    && (
+      submission.curie_review_status === 'pending_evaluation'
+      || (submission.curie_review_status == null && !submission.feedback)
+    ),
+  );
+  const { observedPending } = usePendingReviewPolling({
+    enabled: shouldPoll,
+    isPending: shouldPoll,
+    identity: submission ? `${submission.id}:${submission.version_number}` : null,
+    fetcher: () => submissionsApi.get(submission!.id),
+    onResult: setSubmission,
+  });
+
+  const lifecycle = deriveLifecycle({
+    submissionStatus: submission?.status,
+    curieReviewStatus: submission?.curie_review_status ?? null,
+    feedbackSource: submission?.feedback?.source,
+    atMaxAttempts: submission?.at_max_attempts,
+    isSlowPending: submission?.is_slow_pending,
+    hasFeedback: Boolean(submission?.feedback),
+    observedPendingInSession: observedPending,
+  });
+
+  const showCurieReviewScreen = Boolean(
+    selectedTemplate
+    && (
+      lifecycle.displayState === 'pending'
+      || lifecycle.displayState === 'live_failed'
+      || lifecycle.displayState === 'curie_accepted'
+      || lifecycle.displayState === 'curie_rejected'
+    ),
+  );
+
   useEffect(() => {
-    if (!submission?.id || submission.status === 'draft') return undefined;
-
-    let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
-    const refresh = () => {
-      submissionsApi.get(submission.id).then((updated) => {
-        if (!cancelled) setSubmission(updated);
-      }).catch(() => {});
-    };
-
-    refresh();
-    window.addEventListener('focus', refresh);
-
-    if (!submission.feedback) {
-      intervalId = setInterval(refresh, 30_000);
+    if (!submission?.id) {
+      setLearnerReview(null);
+      return undefined;
+    }
+    if (lifecycle.displayState !== 'curie_accepted' && lifecycle.displayState !== 'curie_rejected') {
+      setLearnerReview(null);
+      return undefined;
     }
 
+    let cancelled = false;
+    submissionsApi.getCurieReview(submission.id)
+      .then((payload) => {
+        if (!cancelled) setLearnerReview(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setLearnerReview(null);
+      });
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
-      window.removeEventListener('focus', refresh);
     };
-  }, [submission?.id, submission?.status, submission?.feedback, setSubmission]);
+  }, [submission?.id, submission?.version_number, lifecycle.displayState]);
 
   // Load submitted version history for the student Submission History panel
   useEffect(() => {
@@ -335,22 +374,32 @@ export const TasApp: React.FC = () => {
     return clampFormDataToFields(data, layoutsByFieldId);
   }, [selectedTemplate]);
 
-  const submitAssignment = useCallback(async () => {
-    if (!submission || submission.status !== 'draft') return;
+  const submitAssignment = useCallback(async (answers?: Record<string, string>) => {
+    if (!submission || !(lifecycle.canSubmit || lifecycle.canReattempt)) return;
+    const sourceData = answers ?? formData;
 
     try {
       setIsSaving(true);
       // Defensive clamp so stale/legacy values cannot overflow the PDF boxes.
-      const { formData: clampedData, capacityFull } = clampFormDataForSubmit(formData);
-      if (Object.keys(capacityFull).length > 0) {
-        setFormData(clampedData);
+      const { formData: clampedData, capacityFull } = clampFormDataForSubmit(sourceData);
+      const capacityPlan = capacitySubmitPlan(answers, clampedData, capacityFull);
+      if (capacityPlan.abort) {
+        alert('Some answers exceed the field capacity. Shorten them before submitting.');
+        return;
+      }
+      if (capacityPlan.nextFormData) {
+        setFormData(capacityPlan.nextFormData);
+      }
+      if (capacityPlan.nextCapacityFull) {
         useTasStore.getState().setFieldCapacityFullMap({
           ...useTasStore.getState().fieldCapacityFull,
-          ...capacityFull,
+          ...capacityPlan.nextCapacityFull,
         });
       }
-      await submissionsApi.patch(submission.id, clampedData);
-      const submitted = await submissionsApi.submit(submission.id);
+      if (submission.status === 'draft') {
+        await submissionsApi.patch(submission.id, clampedData);
+      }
+      const submitted = await submissionsApi.submit(submission.id, clampedData);
       setSubmission(submitted);
     } catch (err: any) {
       const responseData = err?.response?.data;
@@ -375,19 +424,21 @@ export const TasApp: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [submission, formData, setIsSaving, setSubmission, setFormData, clampFormDataForSubmit]);
+  }, [submission, formData, setIsSaving, setSubmission, setFormData, clampFormDataForSubmit, lifecycle.canSubmit, lifecycle.canReattempt]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback((answers?: Record<string, string>) => {
     // Close editor first so Submit is reachable while the popup is open.
     // formData (committed values) is unchanged; only dismisses the popup UI.
     useTasStore.getState().closeFieldEditor();
 
-    if (!submission || submission.status !== 'draft') return;
+    const sourceData = answers ?? formData;
+    const canGo = lifecycle.canSubmit || lifecycle.canReattempt;
+    if (!submission || !canGo) return;
 
     const activeFields = getActiveFields(selectedTemplate);
 
     const missing = activeFields
-      .filter((f) => f.required && isFieldEmpty(formData, f.id))
+      .filter((f) => f.required && isFieldEmpty(sourceData, f.id))
       .map((f) => f.label);
 
     if (missing.length > 0) {
@@ -397,15 +448,17 @@ export const TasApp: React.FC = () => {
     }
 
     const hasEmptyOptional = activeFields.some(
-      (f) => !f.required && isFieldEmpty(formData, f.id),
+      (f) => !f.required && isFieldEmpty(sourceData, f.id),
     );
     if (hasEmptyOptional) {
+      pendingSubmitAnswers.current = sourceData;
       setOptionalFieldsModalOpen(true);
       return;
     }
 
+    pendingSubmitAnswers.current = sourceData;
     setConfirmSubmitModalOpen(true);
-  }, [submission, selectedTemplate, formData]);
+  }, [submission, selectedTemplate, formData, lifecycle.canSubmit, lifecycle.canReattempt]);
 
   const handleOptionalContinueHere = useCallback(() => {
     setOptionalFieldsModalOpen(false);
@@ -413,7 +466,7 @@ export const TasApp: React.FC = () => {
 
   const handleOptionalConfirmSubmit = useCallback(() => {
     setOptionalFieldsModalOpen(false);
-    void submitAssignment();
+    void submitAssignment(pendingSubmitAnswers.current ?? undefined);
   }, [submitAssignment]);
 
   const handleConfirmSubmitCancel = useCallback(() => {
@@ -422,7 +475,7 @@ export const TasApp: React.FC = () => {
 
   const handleConfirmSubmitConfirm = useCallback(() => {
     setConfirmSubmitModalOpen(false);
-    void submitAssignment();
+    void submitAssignment(pendingSubmitAnswers.current ?? undefined);
   }, [submitAssignment]);
 
   // ── Edit Assignment (rejected → draft reopen) ──────────────────────────────
@@ -461,8 +514,8 @@ export const TasApp: React.FC = () => {
     setBackConfirmOpen(true);
   }, []);
 
-  const isLocked = submission != null && submission.status !== 'draft';
-  const isRejected = submission?.status === 'rejected';
+  const isLocked = lifecycle.isCanvasReadOnly;
+  const isRejected = lifecycle.useLegacyReopen;
   const backGuardEnabled = Boolean(
     selectedTemplate && submission && submission.status === 'draft',
   );
@@ -506,6 +559,76 @@ export const TasApp: React.FC = () => {
       <div className="h-100 overflow-auto">
         <TemplateSelector />
       </div>
+    );
+  }
+
+  const readyReview = learnerReview ?? (
+    submission?.feedback
+    && (lifecycle.displayState === 'curie_accepted' || lifecycle.displayState === 'curie_rejected')
+      ? {
+        status: 'ready' as const,
+        verdict: submission.feedback.verdict
+          ?? (lifecycle.displayState === 'curie_accepted' ? 'accepted' as const : 'rejected' as const),
+        overall_feedback: submission.feedback.comment,
+        field_feedback: submission.feedback.field_feedback ?? [],
+        star_rating: null,
+        is_slow_pending: Boolean(submission.is_slow_pending),
+        submission_version_number: submission.version_number,
+        error_detail: '',
+        requested_at: null,
+        completed_at: null,
+      }
+      : null
+  );
+
+  if (showCurieReviewScreen && submission && (
+    lifecycle.displayState === 'pending'
+    || lifecycle.displayState === 'live_failed'
+    || lifecycle.displayState === 'curie_accepted'
+    || lifecycle.displayState === 'curie_rejected'
+  )) {
+    return (
+      <>
+        <CurieReviewScreen
+          template={selectedTemplate}
+          displayState={lifecycle.displayState}
+          review={readyReview}
+          title={selectedTemplate.name}
+          submittedAt={submission.submitted_at}
+          usageKey={mfeContext?.usageKey ?? submission.usage_key}
+          formData={formData}
+          atMaxAttempts={lifecycle.atMaxAttempts}
+          canReattempt={lifecycle.canReattempt}
+          isSlowPending={lifecycle.isSlowPending}
+          isSaving={isSaving}
+          isMobile={isMobile}
+          onBack={() => navigateBackToAssignment(mfeContext)}
+          onRequestSubmit={handleSubmit}
+        />
+        <RequiredFieldsModal
+          isOpen={requiredFieldsModalOpen}
+          missingFields={missingRequiredFields}
+          isSaving={isSaving}
+          allowSaveDraft={false}
+          onClose={handleRequiredFieldsComplete}
+          onComplete={handleRequiredFieldsComplete}
+          onSaveDraftAndGoBack={handleSaveDraftAndGoBack}
+        />
+        <OptionalFieldsSubmitModal
+          isOpen={optionalFieldsModalOpen}
+          isSaving={isSaving}
+          onClose={handleOptionalContinueHere}
+          onContinueHere={handleOptionalContinueHere}
+          onConfirmSubmit={handleOptionalConfirmSubmit}
+        />
+        <ConfirmSubmitModal
+          isOpen={confirmSubmitModalOpen}
+          isSaving={isSaving}
+          onClose={handleConfirmSubmitCancel}
+          onCancel={handleConfirmSubmitCancel}
+          onConfirmSubmit={handleConfirmSubmitConfirm}
+        />
+      </>
     );
   }
 
@@ -571,7 +694,13 @@ export const TasApp: React.FC = () => {
           {!isLocked && (
             <button
               type="button"
-              onClick={openBackConfirm}
+              onClick={() => {
+                if (submission?.status === 'draft') {
+                  openBackConfirm();
+                  return;
+                }
+                navigateBackToAssignment(mfeContext);
+              }}
               style={{ ...btnBase, background: '#f3f4f6', color: '#374151' }}
             >
               ← Back
@@ -660,7 +789,7 @@ export const TasApp: React.FC = () => {
           {!isLocked && (
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={isSaving || !submission}
               style={{
                 ...btnBase,
@@ -797,6 +926,7 @@ export const TasApp: React.FC = () => {
         onClose={handleRequiredFieldsComplete}
         onComplete={handleRequiredFieldsComplete}
         onSaveDraftAndGoBack={handleSaveDraftAndGoBack}
+        allowSaveDraft={submission?.status === 'draft'}
       />
 
       <BackNavigationModal

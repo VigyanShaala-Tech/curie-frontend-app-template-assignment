@@ -10,6 +10,7 @@ import { getAuthenticatedUser } from '@edx/frontend-platform/auth';
 import { useTasStore } from '../store/tasStore';
 import { AdminSubmissionsList } from './admin/AdminSubmissionsList';
 import { AdminSubmissionDetail } from './admin/AdminSubmissionDetail';
+import { courseIdFromUsageKey } from '../utils/studentMfeContext';
 
 type View =
   | { mode: 'list' }
@@ -34,7 +35,7 @@ export const InstructorPage: React.FC = () => {
       courseId:
         injected?.courseId
         || params.get('course_id')
-        || usageKey.replace(/type@.*$/, '').replace('block-v1:', 'course-v1:').replace(/\+[^+]+$/, ''),
+        || courseIdFromUsageKey(usageKey),
       studentId:
         injected?.studentId
         || params.get('student_id')

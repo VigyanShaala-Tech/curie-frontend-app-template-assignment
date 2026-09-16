@@ -8,15 +8,25 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { useTasStore } from '../store/tasStore';
 import { FieldOverlay } from './FieldOverlay';
-import { fitScaleToWidth } from '../utils/fitScaleToWidth';
+import { fitScaleToBox, fitScaleToWidth } from '../utils/fitScaleToWidth';
 import type { Template } from '../types';
 
 interface Props {
   template: Template;
   readOnly?: boolean;
+  overlay?: React.ReactNode;
+  formDataOverride?: Record<string, string>;
+  /** Fit the natural worksheet into the current pane on first paint (desktop review). */
+  fitToPane?: boolean;
 }
 
-export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) => {
+export const TemplateCanvas: React.FC<Props> = ({
+  template,
+  readOnly = false,
+  overlay = null,
+  formDataOverride,
+  fitToPane = false,
+}) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { canvasState, setCanvasState, selectedFieldId, setSelectedFieldId, isMobile } = useTasStore();
@@ -24,12 +34,13 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
   const imageNaturalW = template.image_width || 794;
   const imageNaturalH = template.image_height || 1123;
 
-  // Mobile: fit natural-size content into viewport; desktop uses canvasState.scale.
-  const [mobileFitScale, setMobileFitScale] = useState<number | null>(null);
+  // Mobile and review panes: fit natural-size content into the wrapper.
+  const [paneFitScale, setPaneFitScale] = useState<number | null>(null);
+  const shouldFitPane = isMobile || fitToPane;
 
   useLayoutEffect(() => {
-    if (!isMobile) {
-      setMobileFitScale(null);
+    if (!shouldFitPane) {
+      setPaneFitScale(null);
       return undefined;
     }
 
@@ -37,7 +48,17 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
     if (!el) return undefined;
 
     const update = () => {
-      setMobileFitScale(fitScaleToWidth(el.clientWidth, imageNaturalW, 16));
+      if (fitToPane) {
+        setPaneFitScale(fitScaleToBox(
+          el.clientWidth,
+          el.clientHeight,
+          imageNaturalW,
+          imageNaturalH,
+          48,
+        ));
+      } else {
+        setPaneFitScale(fitScaleToWidth(el.clientWidth, imageNaturalW, 16));
+      }
     };
 
     update();
@@ -50,25 +71,25 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
     return () => {
       observer?.disconnect();
     };
-  }, [isMobile, imageNaturalW]);
+  }, [shouldFitPane, fitToPane, isMobile, imageNaturalW, imageNaturalH]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) setSelectedFieldId(null);
   };
 
-  const initialScale = isMobile
-    ? (mobileFitScale ?? canvasState.scale)
+  const initialScale = shouldFitPane
+    ? (paneFitScale ?? canvasState.scale)
     : canvasState.scale;
 
-  // Remount TransformWrapper once mobile fit scale is known so initialScale applies.
-  const transformKey = isMobile
-    ? `mobile-${mobileFitScale ?? 'pending'}-${imageNaturalW}`
+  // Remount TransformWrapper once fit scale is known so initialScale applies.
+  const transformKey = shouldFitPane
+    ? `fit-${isMobile ? 'mobile' : 'desktop'}-${paneFitScale ?? 'pending'}-${imageNaturalW}`
     : `desktop-${imageNaturalW}`;
 
   return (
     <div
       ref={wrapperRef}
-      className="tas-template-canvas"
+      className={`tas-template-canvas${fitToPane ? ' tas-template-canvas--fit-pane' : ''}`}
       style={{
         position: 'relative',
         width: '100%',
@@ -80,12 +101,12 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
       <TransformWrapper
         key={transformKey}
         initialScale={initialScale}
-        initialPositionX={isMobile ? 0 : canvasState.positionX}
-        initialPositionY={isMobile ? 0 : canvasState.positionY}
+        initialPositionX={shouldFitPane ? 0 : canvasState.positionX}
+        initialPositionY={shouldFitPane ? 0 : canvasState.positionY}
         minScale={0.2}
         maxScale={5}
         limitToBounds={false}
-        centerOnInit
+        centerOnInit={!fitToPane}
         wheel={{ disabled: true }}
         pinch={{ disabled: !isMobile }}
         onTransformed={(ref) => {
@@ -96,7 +117,7 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
           });
         }}
       >
-        {({ zoomIn, zoomOut, centerView }) => (
+        {({ zoomIn, zoomOut, centerView, setTransform }) => (
           <>
             {/* Zoom controls */}
             <div style={{
@@ -106,7 +127,12 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
               {[
                 { label: '+', action: () => zoomIn() },
                 { label: '−', action: () => zoomOut() },
-                { label: '↺', action: () => centerView(1) },
+                {
+                  label: '↺',
+                  action: () => (fitToPane && paneFitScale != null
+                    ? setTransform(0, 0, paneFitScale)
+                    : centerView(shouldFitPane ? (paneFitScale ?? 1) : 1)),
+                },
               ].map(({ label, action }) => (
                 <button
                   key={label}
@@ -185,9 +211,15 @@ export const TemplateCanvas: React.FC<Props> = ({ template, readOnly = false }) 
                       actualImageWidth={imageNaturalW}
                       actualImageHeight={imageNaturalH}
                       isReadOnly={readOnly}
+                      formDataOverride={formDataOverride}
                     />
                   );
                 })}
+                {overlay ? (
+                  <div className="tas-template-canvas__overlay">
+                    {overlay}
+                  </div>
+                ) : null}
               </div>
             </TransformComponent>
           </>

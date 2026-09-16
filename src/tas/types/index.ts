@@ -89,6 +89,10 @@ export interface BlockTemplatesResponse {
 // ─── Submissions (tas_submissions) ────────────────────────────────────────────
 
 export type SubmissionStatus = 'draft' | 'submitted' | 'rejected' | 'approved';
+export type FeedbackSource = 'human' | 'curie';
+export type CurieReviewStatus = 'pending_evaluation' | 'ready' | 'failed';
+export type CurieVerdict = 'accepted' | 'rejected';
+export type FieldColor = 'needs_revision' | 'could_improve' | 'good' | null;
 
 // ─── Rubrics ──────────────────────────────────────────────────────────────────
 
@@ -124,11 +128,35 @@ export interface RubricFeedbackEntry {
   score: number | null;
 }
 
+export interface CurieFieldFeedback {
+  field_id: string;
+  weight: number;
+  comment: string;
+  color?: FieldColor;
+  criterion_scores?: Array<{ criterion: string; score: number; max_score: number }>;
+}
+
 export interface SubmissionFeedback {
   status: 'pending' | 'approved' | 'rejected';
   comment: string;
   rubrics?: RubricFeedbackEntry[];
   total?: number;
+  source?: FeedbackSource;
+  verdict?: CurieVerdict | null;
+  field_feedback?: CurieFieldFeedback[];
+}
+
+export interface LearnerCurieReview {
+  status: CurieReviewStatus;
+  verdict: CurieVerdict | null;
+  overall_feedback: string;
+  field_feedback: CurieFieldFeedback[];
+  star_rating: number | null;
+  is_slow_pending: boolean;
+  submission_version_number: number;
+  error_detail: string;
+  requested_at: string | null;
+  completed_at: string | null;
 }
 
 export interface Submission {
@@ -143,6 +171,10 @@ export interface Submission {
   submitted_at: string | null;
   pdf_url: string;
   feedback?: SubmissionFeedback | null;
+  curie_review_status?: CurieReviewStatus | null;
+  is_slow_pending?: boolean;
+  submission_attempt_count?: number;
+  at_max_attempts?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -158,6 +190,11 @@ export interface SubmissionVersion {
   instructor_comment: string;
   pdf_url: string | null;
   download_url: string | null;
+  attempt_number?: number | null;
+  curie_review_status?: CurieReviewStatus | null;
+  feedback_source?: FeedbackSource | null;
+  verdict?: CurieVerdict | null;
+  star_rating?: number | null;
   /** Legacy fields retained for older callers / instructor table field counts. */
   form_data?: Record<string, string>;
   saved_at?: string;

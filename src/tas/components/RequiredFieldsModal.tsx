@@ -22,6 +22,7 @@ interface Props {
   onClose: () => void;
   onComplete: () => void;
   onSaveDraftAndGoBack: () => void;
+  allowSaveDraft?: boolean;
 }
 
 const secondaryBtnStyle: React.CSSProperties = {
@@ -78,6 +79,7 @@ export const RequiredFieldsModal: React.FC<Props> = ({
   onClose,
   onComplete,
   onSaveDraftAndGoBack,
+  allowSaveDraft = true,
 }) => {
   const isMobile = useTasStore((s) => s.isMobile);
 
@@ -141,6 +143,7 @@ export const RequiredFieldsModal: React.FC<Props> = ({
         marginTop: isMobile ? 16 : 0,
       }}
     >
+      {allowSaveDraft && (
       <button
         type="button"
         onClick={onSaveDraftAndGoBack}
@@ -154,6 +157,7 @@ export const RequiredFieldsModal: React.FC<Props> = ({
         <Icon src={Save} style={{ width: 18, height: 18 }} />
         {isSaving ? 'Saving…' : 'Save Draft & Go Back'}
       </button>
+      )}
 
       <button
         type="button"

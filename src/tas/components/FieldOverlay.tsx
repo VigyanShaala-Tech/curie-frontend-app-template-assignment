@@ -20,6 +20,7 @@ interface FieldOverlayProps {
   actualImageWidth: number;
   actualImageHeight: number;
   isReadOnly?: boolean;
+  formDataOverride?: Record<string, string>;
 }
 
 const CAPACITY_WARNING =
@@ -32,14 +33,14 @@ export const FieldOverlay: React.FC<FieldOverlayProps> = ({
   actualImageWidth,
   actualImageHeight,
   isReadOnly = false,
+  formDataOverride,
 }) => {
-  const { openFieldEditor, formData, isMobile, submission, fieldCapacityFull } = useTasStore();
+  const { openFieldEditor, formData, isMobile, fieldCapacityFull } = useTasStore();
 
   const layout = resolveFieldLayout(field, position, actualImageWidth, actualImageHeight);
-  const fieldValue = formData[field.id] ?? '';
+  const fieldValue = (formDataOverride ?? formData)[field.id] ?? '';
   const hasValue = fieldValue.trim().length > 0;
-  const isSubmitted = submission?.status === 'submitted';
-  const isInactive = isReadOnly || isSubmitted;
+  const isInactive = isReadOnly;
   const isCapacityFull = Boolean(fieldCapacityFull[field.id]);
 
   const handleClick = (e: React.MouseEvent) => {

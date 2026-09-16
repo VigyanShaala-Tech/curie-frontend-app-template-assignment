@@ -15,6 +15,8 @@ import { FooterSlot } from '@edx/frontend-component-footer';
 
 import messages from './i18n';
 import { StudentPage } from './tas/components/StudentPage';
+import { SubmissionHistoryPage } from './tas/components/SubmissionHistoryPage';
+import { HistoricalReviewPage } from './tas/components/HistoricalReviewPage';
 import { InstructorPage } from './tas/components/InstructorPage';
 import { AdminPage } from './tas/components/AdminPage';
 
@@ -60,7 +62,8 @@ const AppShell: React.FC = () => {
         }}
       >
         <Routes>
-          {/* Student submission view */}
+          <Route path="/submission/:usageKey/history/:version" element={<HistoricalReviewPage />} />
+          <Route path="/submission/:usageKey/history" element={<SubmissionHistoryPage />} />
           <Route path="/submission/:usageKey" element={<StudentPage />} />
 
           {/* Instructor grading view */}

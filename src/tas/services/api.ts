@@ -21,7 +21,10 @@ import type {
   PdfStatusResponse,
   TemplateCreateBody,
   TemplateUpdateBody,
+  LearnerCurieReview,
+  CurieReviewStatus,
 } from '../types';
+import { instructorLockFromQueueRow } from '../lifecycle/queueLock';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,8 +117,27 @@ function mapSubmission(raw: any): Submission {
     submitted_at: raw.submitted_at ?? null,
     pdf_url: raw.pdf_url ?? '',
     feedback: raw.feedback ?? null,
+    curie_review_status: (raw.curie_review_status ?? null) as CurieReviewStatus | null,
+    is_slow_pending: Boolean(raw.is_slow_pending),
+    submission_attempt_count: raw.submission_attempt_count ?? 0,
+    at_max_attempts: Boolean(raw.at_max_attempts),
     created_at: raw.created_at ?? '',
     updated_at: raw.updated_at ?? '',
+  };
+}
+
+function mapLearnerCurieReview(raw: any): LearnerCurieReview {
+  return {
+    status: raw.status,
+    verdict: raw.verdict ?? null,
+    overall_feedback: raw.overall_feedback ?? '',
+    field_feedback: raw.field_feedback ?? [],
+    star_rating: raw.star_rating ?? null,
+    is_slow_pending: Boolean(raw.is_slow_pending),
+    submission_version_number: raw.submission_version_number,
+    error_detail: raw.error_detail ?? '',
+    requested_at: raw.requested_at ?? null,
+    completed_at: raw.completed_at ?? null,
   };
 }
 
@@ -282,8 +304,8 @@ export const submissionsApi = {
     return mapSubmission(data);
   },
 
-  submit: async (id: string): Promise<Submission> => {
-    const { data } = await http().post(`${tasBase()}/student-submission/${id}/submit/`);
+  submit: async (id: string, form_data: Record<string, string>): Promise<Submission> => {
+    const { data } = await http().post(`${tasBase()}/student-submission/${id}/submit/`, { form_data });
     return mapSubmission(data);
   },
 
@@ -303,6 +325,11 @@ export const submissionsApi = {
       instructor_comment: v.instructor_comment ?? '',
       pdf_url: v.pdf_url ?? null,
       download_url: v.download_url ?? v.pdf_url ?? null,
+      attempt_number: v.attempt_number ?? null,
+      curie_review_status: v.curie_review_status ?? null,
+      feedback_source: v.feedback_source ?? null,
+      verdict: v.verdict ?? null,
+      star_rating: v.star_rating ?? null,
       form_data: v.form_data ?? {},
       saved_at: v.saved_at ?? v.submitted_at ?? '',
     }));
@@ -310,6 +337,13 @@ export const submissionsApi = {
       submission_id: String(data.submission_id),
       versions,
     };
+  },
+
+  getCurieReview: async (id: string, version?: number): Promise<LearnerCurieReview> => {
+    const { data } = await http().get(`${tasBase()}/student-submission/${id}/curie-review/`, {
+      params: version != null ? { version } : undefined,
+    });
+    return mapLearnerCurieReview(data);
   },
 };
 
@@ -365,6 +399,9 @@ export interface AdminSubmissionListRow {
   university_name: string;
   partner_organization: string;
   resubmission_count: number;
+  curie_review_status?: CurieReviewStatus | null;
+  feedback_source?: string | null;
+  instructor_form_locked?: boolean;
 }
 
 export interface AdminSubmissionListFilterOptions {
@@ -416,7 +453,10 @@ export const adminSubmissionsApi = {
         },
       },
     );
-    const results = Array.isArray(data?.results) ? data.results : [];
+    const results = (Array.isArray(data?.results) ? data.results : []).map((row: AdminSubmissionListRow) => ({
+      ...row,
+      instructor_form_locked: instructorLockFromQueueRow(row),
+    }));
     const count = typeof data?.count === 'number' ? data.count : results.length;
     const rawCounts = data?.status_counts;
     const status_counts: AdminSubmissionListStatusCounts = {

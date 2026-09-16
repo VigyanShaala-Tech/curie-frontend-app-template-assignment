@@ -16,6 +16,7 @@ import {
 import { ArrowBack, CheckCircle, InfoOutline } from '@openedx/paragon/icons';
 import { adminSubmissionsApi } from '../../services/api';
 import { useTasStore } from '../../store/tasStore';
+import { usePendingReviewPolling } from '../../hooks/usePendingReviewPolling';
 import type { RubricCriterion, RubricFeedbackEntry } from '../../types';
 import { htmlToPlainText, plainTextToHtml } from '../../utils/commentHtmlAdapter';
 import {
@@ -31,7 +32,13 @@ import {
 } from '../../utils/statusLabels';
 import { InstructorCommentEditor } from './InstructorCommentEditor';
 import { InstructorCommentHtml } from './InstructorCommentHtml';
+import { InstructorCuriePanel } from './InstructorCuriePanel';
 import { PredefinedFeedbackMultiSelect } from './PredefinedFeedbackMultiSelect';
+import {
+  INSTRUCTOR_OVERRIDE_ACTION,
+  INSTRUCTOR_OVERRIDE_CONFIRM,
+  presentInstructorCurie,
+} from '../../utils/instructorCurieUi';
 
 interface Props {
   submissionId: string;
@@ -65,6 +72,12 @@ const FEEDBACK_BORDER: Record<string, string> = {
   approved: '#28a745',
   pending: '#6c757d',
 };
+
+function curieStatusBadgeVariant(label: string): string {
+  if (label === 'Failed') return 'danger';
+  if (label === 'Pending') return 'warning';
+  return 'info';
+}
 
 const criteriaChipStyle: React.CSSProperties = {
   display: 'inline-block',
@@ -110,6 +123,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
   const [selectedFeedbacks, setSelectedFeedbacks] = useState<Record<string, string[]>>({});
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [overrideEditing, setOverrideEditing] = useState(false);
   const hydratedSubmissionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -118,12 +132,24 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     setScoreErrors({});
     setSelectedFeedbacks({});
     setFeedbackSaved(false);
+    setOverrideEditing(false);
     hydratedSubmissionIdRef.current = null;
   }, [usageKey, submissionId]);
 
   const { data: submission, isLoading: loadingSub } = useQuery({
     queryKey: ['admin-submission-detail', submissionId],
     queryFn: () => adminSubmissionsApi.get(submissionId),
+  });
+
+  const instructorPending = submission?.curie_review?.status === 'pending_evaluation';
+  usePendingReviewPolling({
+    enabled: Boolean(submissionId) && instructorPending,
+    isPending: Boolean(instructorPending),
+    identity: `${submissionId}:${submission?.version_number ?? ''}`,
+    fetcher: () => adminSubmissionsApi.get(submissionId),
+    onResult: (data) => {
+      queryClient.setQueryData(['admin-submission-detail', submissionId], data);
+    },
   });
 
   const { data: rubrics, isLoading: loadingRubrics } = useQuery({
@@ -138,7 +164,8 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   // Prefill scores/comment/predefined selections when reopening a submitted review
   // (e.g. after withdraw). Runs once per submissionId load; does not wipe in-progress edits.
   useEffect(() => {
-    if (!submission || submission.status !== 'submitted') return;
+    if (!submission) return;
+    if (submission.status !== 'submitted' && !overrideEditing) return;
     if (hydratedSubmissionIdRef.current === submissionId) return;
 
     const feedback = submission.feedback;
@@ -187,7 +214,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     }
 
     hydratedSubmissionIdRef.current = submissionId;
-  }, [submission, rubrics, submissionId]);
+  }, [submission, rubrics, submissionId, overrideEditing]);
 
   const feedbackMut = useMutation({
     mutationFn: (payload: {
@@ -291,15 +318,39 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
 
   const maximumScore = rubricList.length * 10;
 
+  const curiePresentation = presentInstructorCurie({
+    submissionStatus: submission.status,
+    feedbackSource: submission.feedback?.source,
+    curieReview: submission.curie_review,
+  });
+
   const handleFeedbackSubmit = (feedbackStatus: 'approved' | 'rejected') => {
+    if (curiePresentation.formLocked) {
+      return;
+    }
     const { hasErrors, rubricPayload, total } = validateScores();
     if (hasErrors) {
+      return;
+    }
+    if (curiePresentation.requireOverrideConfirm && !window.confirm(INSTRUCTOR_OVERRIDE_CONFIRM)) {
       return;
     }
     feedbackMut.mutate({ feedbackStatus, rubricPayload, total });
   };
   const versionHistory: any[] = submission.version_history ?? [];
   const isSubmitted = submission.status === 'submitted';
+  const showGradingForm = (
+    (isSubmitted && !curiePresentation.formLocked && !curiePresentation.canOverride)
+    || overrideEditing
+  );
+  const showPreviousProjection = Boolean(
+    !isSubmitted
+    && submission.feedback
+    && !curiePresentation.showReadyOutput,
+  );
+  const feedbackCardTitle = showGradingForm || isSubmitted
+    ? 'Instructor Feedback'
+    : (curiePresentation.showReadyOutput ? 'CURIE review' : 'Previous Feedback');
 
   return (
     <div className="d-flex flex-column h-100">
@@ -320,6 +371,16 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
         <Badge variant={STATUS_BADGE[submission.status] ?? 'secondary'}>
           {formatSubmissionStatusLabel(submission.status)}
         </Badge>
+        {curiePresentation.reviewStatusLabel && (
+          <Badge variant={curieStatusBadgeVariant(curiePresentation.reviewStatusLabel)}>
+            CURIE {curiePresentation.reviewStatusLabel}
+          </Badge>
+        )}
+        {curiePresentation.sourceLabel && (
+          <Badge variant={curiePresentation.sourceLabel === 'Human' ? 'secondary' : 'light'}>
+            Source: {curiePresentation.sourceLabel}
+          </Badge>
+        )}
       </div>
 
       {/* Body */}
@@ -340,10 +401,41 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
           {/* Right: Feedback form (submitted) or past feedback (rejected) */}
           <div className="col-12 col-lg-6 mb-4">
             <Card className="shadow-sm">
-              <Card.Header title={isSubmitted ? 'Instructor Feedback' : 'Previous Feedback'} />
+              <Card.Header title={feedbackCardTitle} />
               <Card.Section>
-                {/* Past feedback for non-submitted (rejected/approved) */}
-                {!isSubmitted && submission.feedback && (
+                <InstructorCuriePanel
+                  presentation={curiePresentation}
+                  review={submission.curie_review}
+                  templateFields={submission.template_fields ?? {}}
+                  overrideEditing={overrideEditing}
+                />
+                {curiePresentation.formLocked && (
+                  <p className="text-muted small mb-0" data-testid="instructor-form-locked">
+                    Approve and Reject stay disabled until CURIE finishes or times out.
+                  </p>
+                )}
+                {curiePresentation.canOverride && !overrideEditing && !feedbackSaved && (
+                  <Button
+                    variant="tertiary"
+                    size="sm"
+                    className="mb-3"
+                    onClick={() => setOverrideEditing(true)}
+                  >
+                    {INSTRUCTOR_OVERRIDE_ACTION}
+                  </Button>
+                )}
+                {overrideEditing && (
+                  <Button
+                    variant="tertiary"
+                    size="sm"
+                    className="mb-3"
+                    onClick={() => setOverrideEditing(false)}
+                  >
+                    Cancel override
+                  </Button>
+                )}
+                {/* Past feedback for human-owned / non-CURIE finalized reviews */}
+                {showPreviousProjection && (
                   <div>
                     <Badge variant={FEEDBACK_BADGE[submission.feedback.status] ?? 'secondary'} className="mb-2">
                       {formatFeedbackStatusLabel(submission.feedback.status)}
@@ -381,8 +473,8 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   <p className="text-muted small mb-0">No feedback recorded.</p>
                 )}
 
-                {/* Review form — only for submitted */}
-                {isSubmitted && (
+                {/* Review form — submitted and not pending-locked */}
+                {showGradingForm && (
                   feedbackSaved ? (
                     <div className="d-flex align-items-center text-success" style={{ gap: '0.5rem' }}>
                       <CheckCircle />
@@ -609,8 +701,8 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
           </div>
         </div>
 
-        {/* Feedback history — always show if past feedback versions exist */}
-        {submission.feedback?.versions?.length > 0 && (
+        {/* Compatibility projection history — not for ready CURIE (already shown once). */}
+        {Boolean(submission.feedback?.versions?.length) && !curiePresentation.showReadyOutput && (
           <Card className="shadow-sm mb-4">
             <Card.Header title="Feedback History" />
             <Card.Section>
