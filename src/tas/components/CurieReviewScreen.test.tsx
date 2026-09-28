@@ -126,6 +126,23 @@ describe('CurieReviewScreen', () => {
     expect(screen.getAllByRole('button', { name: 'Reattempt' }).length).toBeGreaterThan(0);
   });
 
+  it('never renders diagnostic error detail for a historical failure', () => {
+    renderScreen({
+      displayState: 'live_failed',
+      historical: true,
+      canReattempt: false,
+      review: {
+        ...readyReview,
+        status: 'failed',
+        verdict: null,
+        field_feedback: [],
+        error_detail: 'HTTP 503 from internal-curie-host.example',
+      },
+    });
+    expect(screen.getByText('CURIE did not complete a review for this attempt.')).toBeTruthy();
+    expect(screen.queryByText(/HTTP 503/)).toBeNull();
+  });
+
   it('renders accepted review without reattempt and with stars', () => {
     renderScreen({
       displayState: 'curie_accepted',

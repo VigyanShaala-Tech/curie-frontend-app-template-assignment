@@ -16,6 +16,7 @@ import { applyTextCandidate } from '../utils/clampTextToField';
 import { resolveFieldLayout } from '../utils/fieldLayout';
 import {
   CAP_REACHED_MESSAGE,
+  HISTORICAL_FAILED_COPY,
   learnerVerdictLabel,
   orderFieldFeedback,
 } from '../utils/curieReview';
@@ -150,9 +151,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     historical ? (
       <div>
         <h3 className="curie-review-heading">Curie Review</h3>
-        <p className="curie-pending-note">
-          {review?.error_detail || 'CURIE did not complete a review for this attempt.'}
-        </p>
+        <p className="curie-pending-note">{HISTORICAL_FAILED_COPY}</p>
       </div>
     ) : (
       <CurieReviewPending variant="live_failed" />

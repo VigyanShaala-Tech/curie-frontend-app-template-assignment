@@ -14,7 +14,7 @@ export const FIELD_COLOR_LABEL: Record<Exclude<FieldColor, null>, string> = {
 };
 
 export function isWeightedField(entry: CurieFieldFeedback): boolean {
-  return Number(entry.weight) !== 0;
+  return Number(entry.weight) > 0;
 }
 
 export function orderFieldFeedback(
@@ -83,3 +83,6 @@ export const SLOW_PENDING_COPY =
 
 export const LIVE_FAILED_COPY =
   "Curie wasn't able to complete a review for this submission. Your answers are unchanged below — resubmit whenever you're ready to try again.";
+
+export const HISTORICAL_FAILED_COPY =
+  'CURIE did not complete a review for this attempt.';
