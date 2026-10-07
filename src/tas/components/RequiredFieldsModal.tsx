@@ -85,7 +85,10 @@ export const RequiredFieldsModal: React.FC<Props> = ({
 
   const fieldList = (
     <div style={{ maxWidth: 560, paddingBottom: 4 }}>
-      <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>
+      <p style={{
+        margin: '0 0 20px', color: '#6b7280', fontSize: 14, lineHeight: 1.5,
+      }}
+      >
         Please complete the required fields before submitting your response.
       </p>
 
@@ -99,9 +102,9 @@ export const RequiredFieldsModal: React.FC<Props> = ({
             overflowY: 'auto',
           }}
         >
-          {missingFields.map((label, index) => (
+          {missingFields.map((label) => (
             <li
-              key={`${label}-${index}`}
+              key={label}
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -182,9 +185,15 @@ export const RequiredFieldsModal: React.FC<Props> = ({
         title="Complete required fields"
         onClose={onClose}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
+        }}
+        >
           {titleIcon}
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
+          <h3 style={{
+            margin: 0, fontSize: 16, fontWeight: 700, color: '#111827',
+          }}
+          >
             Complete required fields
           </h3>
         </div>
@@ -204,7 +213,10 @@ export const RequiredFieldsModal: React.FC<Props> = ({
       isOverflowVisible={false}
     >
       <ModalDialog.Header>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8,
+        }}
+        >
           {titleIcon}
           <ModalDialog.Title style={{ margin: 0 }}>Complete required fields</ModalDialog.Title>
         </div>

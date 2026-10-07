@@ -24,8 +24,9 @@ export const InstructorPage: React.FC = () => {
   const [view, setView] = useState<View>({ mode: 'list' });
 
   useEffect(() => {
-    if (!usageKey) return;
+    if (!usageKey) { return; }
 
+    // eslint-disable-next-line no-underscore-dangle
     const injected = (window as any).__TAS_CONTEXT__;
     const user = getAuthenticatedUser();
     const params = new URLSearchParams(window.location.search);
@@ -45,7 +46,7 @@ export const InstructorPage: React.FC = () => {
     });
   }, [usageKey, setMfeContext]);
 
-  if (!mfeContext || mfeContext.usageKey !== usageKey) return null;
+  if (!mfeContext || mfeContext.usageKey !== usageKey) { return null; }
 
   if (view.mode === 'detail') {
     return (

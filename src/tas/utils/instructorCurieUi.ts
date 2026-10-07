@@ -1,22 +1,16 @@
 import type { CurieReviewStatus, FeedbackSource } from '../types';
 
-export const INSTRUCTOR_PENDING_COPY =
-  'CURIE is reviewing this submission. Manual grading is locked until the review finishes or times out. This page will update automatically.';
+export const INSTRUCTOR_PENDING_COPY = 'CURIE is reviewing this submission. Manual grading is locked until the review finishes or times out. This page will update automatically.';
 
-export const INSTRUCTOR_SLOW_PENDING_COPY =
-  'This is taking longer than usual. Manual grading stays locked. The page will update when CURIE responds or the review times out.';
+export const INSTRUCTOR_SLOW_PENDING_COPY = 'This is taking longer than usual. Manual grading stays locked. The page will update when CURIE responds or the review times out.';
 
-export const INSTRUCTOR_FAILED_RECOVERY_COPY =
-  'CURIE could not complete this review. You can grade this attempt now. Saving sets the feedback source to Human.';
+export const INSTRUCTOR_FAILED_RECOVERY_COPY = 'CURIE could not complete this review. You can grade this attempt now. Saving sets the feedback source to Human.';
 
-export const INSTRUCTOR_OVERRIDE_COPY =
-  'CURIE already produced a review for this attempt. Saving your grade replaces it and permanently sets the source to Human.';
+export const INSTRUCTOR_OVERRIDE_COPY = 'CURIE already produced a review for this attempt. Saving your grade replaces it and permanently sets the source to Human.';
 
-export const INSTRUCTOR_OVERRIDE_CONFIRM =
-  'Saving this grade replaces CURIE’s review for this attempt and permanently sets the feedback source to Human. Continue?';
+export const INSTRUCTOR_OVERRIDE_CONFIRM = 'Saving this grade replaces CURIE’s review for this attempt and permanently sets the feedback source to Human. Continue?';
 
-export const INSTRUCTOR_HUMAN_OWNS_COPY =
-  'This attempt is owned by instructor grading (source: Human). CURIE cannot reclaim it.';
+export const INSTRUCTOR_HUMAN_OWNS_COPY = 'This attempt is owned by instructor grading (source: Human). CURIE cannot reclaim it.';
 
 export const INSTRUCTOR_OVERRIDE_ACTION = 'Override CURIE review';
 
@@ -61,17 +55,17 @@ export interface InstructorCuriePresentation {
 export function queueCurieStatusLabel(
   status: CurieReviewStatus | string | null | undefined,
 ): string {
-  if (status === 'pending_evaluation') return 'Pending';
-  if (status === 'ready') return 'Ready';
-  if (status === 'failed') return 'Failed';
+  if (status === 'pending_evaluation') { return 'Pending'; }
+  if (status === 'ready') { return 'Ready'; }
+  if (status === 'failed') { return 'Failed'; }
   return '—';
 }
 
 export function queueSourceLabel(
   source: FeedbackSource | string | null | undefined,
 ): string {
-  if (source === 'curie') return 'CURIE';
-  if (source === 'human') return 'Human';
+  if (source === 'curie') { return 'CURIE'; }
+  if (source === 'human') { return 'Human'; }
   return '—';
 }
 
@@ -83,7 +77,7 @@ export function canWithdrawQueueRow(row: {
 }
 
 export function formatScoreOutOfTen(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(Number(value))) return '—';
+  if (value == null || !Number.isFinite(Number(value))) { return '—'; }
   return `${Number(value).toFixed(1)}/10`;
 }
 
@@ -92,7 +86,7 @@ export function fieldScoreOutOfTen(entry: StaffFieldEntry): number | null {
     return Number(entry.field_score);
   }
   const scores = entry.criterion_scores ?? [];
-  if (scores.length === 0) return null;
+  if (scores.length === 0) { return null; }
   const total = scores.reduce((sum, row) => sum + Number(row.score), 0);
   return total / scores.length;
 }

@@ -43,8 +43,14 @@ describe('reload-safe history routes', () => {
     loadAssignedTemplate.mockResolvedValue({
       id: '1',
       name: 'Personal SWOT',
-      fields: [{ id: 'goal', label: 'Goal', type: 'textarea', required: true }],
-      field_positions: { goal: { x: 10, y: 10, width: 80, height: 10 } },
+      fields: [{
+        id: 'goal', label: 'Goal', type: 'textarea', required: true,
+      }],
+      field_positions: {
+        goal: {
+          x: 10, y: 10, width: 80, height: 10,
+        },
+      },
       image_url: '',
       image_width: 794,
       image_height: 1123,

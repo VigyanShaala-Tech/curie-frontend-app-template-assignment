@@ -25,36 +25,36 @@ export const SubmissionHistoryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!usageKey) return;
+    if (!usageKey) { return; }
     setMfeContext(buildStudentMfeContext(usageKey));
   }, [usageKey, setMfeContext]);
 
   useEffect(() => {
-    if (!mfeContext || mfeContext.usageKey !== usageKey) return undefined;
+    if (!mfeContext || mfeContext.usageKey !== usageKey) { return undefined; }
     let cancelled = false;
     setLoading(true);
     loadOwnedSubmission(mfeContext)
       .then(async (owned) => {
-        if (cancelled) return;
+        if (cancelled) { return; }
         if (!owned) {
           setVersions([]);
           return;
         }
         const res = await submissionsApi.getVersions(owned.id);
-        if (!cancelled) setVersions(res.versions);
+        if (!cancelled) { setVersions(res.versions); }
       })
       .catch(() => {
-        if (!cancelled) setError('Unable to load submission history.');
+        if (!cancelled) { setError('Unable to load submission history.'); }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoading(false); }
       });
     return () => {
       cancelled = true;
     };
   }, [mfeContext, usageKey]);
 
-  if (!usageKey) return null;
+  if (!usageKey) { return null; }
 
   return (
     <div className="curie-history-page">

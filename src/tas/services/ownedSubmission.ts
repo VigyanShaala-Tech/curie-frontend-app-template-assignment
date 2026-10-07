@@ -20,6 +20,6 @@ export async function loadOwnedSubmission(ctx: MfeContext): Promise<Submission |
 export async function loadAssignedTemplate(ctx: MfeContext): Promise<Template | null> {
   const block = await blockTemplatesApi.list(ctx.usageKey);
   const first = block.templates?.[0];
-  if (!first) return null;
+  if (!first) { return null; }
   return templatesApi.get(first.template.id);
 }

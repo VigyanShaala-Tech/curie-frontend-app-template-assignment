@@ -383,14 +383,14 @@
 .curie-field-pin {
   position: absolute;
   border-radius: 50%;
-  background: #1e3a5f;
-  color: #fff;
+  background: #1E3A5F;
+  color: #FFFFFF;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   transform: translate(-50%, -50%);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px rgb(0 0 0 / .3);
   border: none;
   pointer-events: auto;
   cursor: pointer;
@@ -411,7 +411,7 @@
   max-height: calc(100vh - 132px);
   min-height: 0;
   overflow: hidden;
-  background: #e5e7eb;
+  background: #E5E7EB;
   color: #212121;
 }
 
@@ -428,8 +428,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 24px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E5E7EB;
 }
 
 .curie-review-header h2 {
@@ -440,7 +440,7 @@
 
 .curie-review-header h2 small {
   display: block;
-  color: #6b7280;
+  color: #6B7280;
   font-size: 12px;
   font-weight: 500;
 }
@@ -448,7 +448,7 @@
 .curie-mfe-back {
   padding: 6px 14px;
   border-radius: 8px;
-  background: #f3f4f6;
+  background: #F3F4F6;
   border: none;
   font-weight: 600;
   font-size: 13px;
@@ -460,25 +460,25 @@
   border-radius: 20px;
   font-weight: 700;
   font-size: 13px;
-  background: #eef0f3;
-  color: #4b5563;
+  background: #EEF0F3;
+  color: #4B5563;
 }
 
 .curie-verdict-badge.accepted {
-  background: #d1f4d1;
-  color: #2d6a1f;
+  background: #D1F4D1;
+  color: #2D6A1F;
 }
 
 .curie-verdict-badge.rejected {
-  background: #f4d1d1;
-  color: #a12b2b;
+  background: #F4D1D1;
+  color: #A12B2B;
 }
 
 .curie-history-link {
   margin-left: 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #1e3a5f;
+  color: #1E3A5F;
   text-decoration: none;
 }
 
@@ -501,9 +501,9 @@
 }
 
 .curie-panel {
-  background: #fff;
+  background: #FFFFFF;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgb(0 0 0 / .08);
   overflow: hidden;
 }
 
@@ -542,9 +542,106 @@
 
 .curie-left-actions {
   flex-shrink: 0;
-  background: #fff;
+  background: #FFFFFF;
   padding: 12px 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #E5E7EB;
+}
+
+.tas-pdf-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 10px;
+}
+
+.curie-panel > .tas-pdf-status-banner {
+  flex-shrink: 0;
+  border-right: none;
+  border-bottom: none;
+  border-left: none;
+  border-radius: 0;
+}
+
+.tas-pdf-status-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tas-pdf-status-copy strong,
+.tas-pdf-status-copy small {
+  display: block;
+}
+
+.tas-pdf-status-copy strong {
+  color: #166534;
+  font-size: 13.5px;
+}
+
+.tas-pdf-status-copy small {
+  margin-top: 1px;
+  color: #6B7280;
+  font-size: 11.5px;
+}
+
+.tas-pdf-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  background: #DCFCE7;
+  color: #15803D;
+  font-weight: 800;
+}
+
+.tas-pdf-status-banner.is-generating .tas-pdf-status-icon {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.tas-pdf-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tas-pdf-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #15803D;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #166534;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tas-pdf-button:hover {
+  color: #166534;
+  text-decoration: none;
+}
+
+.tas-pdf-button--primary {
+  background: #15803D;
+  color: #FFFFFF;
+}
+
+.tas-pdf-button--primary:hover {
+  color: #FFFFFF;
 }
 
 .curie-half-right {
@@ -579,18 +676,18 @@
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #6b7280;
+  letter-spacing: .03em;
+  color: #6B7280;
   margin: 20px 0 8px;
 }
 
 .curie-overall-feedback {
   font-size: 14.5px;
   line-height: 1.55;
-  background: #f9fafb;
+  background: #F9FAFB;
   padding: 14px 16px;
   border-radius: 8px;
-  border-left: 3px solid #9ca3af;
+  border-left: 3px solid #9CA3AF;
 }
 
 .curie-rating-row {
@@ -602,14 +699,14 @@
 
 .curie-star-rating {
   font-size: 18px;
-  color: #f5a623;
+  color: #F5A623;
   letter-spacing: 2px;
 }
 
 .curie-pending-note {
   font-size: 14px;
-  color: #6b7280;
-  background: #f9fafb;
+  color: #6B7280;
+  background: #F9FAFB;
   padding: 14px 16px;
   border-radius: 8px;
 }
@@ -623,10 +720,10 @@
 .curie-spinner {
   width: 18px;
   height: 18px;
-  border: 3px solid #e5e7eb;
+  border: 3px solid #E5E7EB;
   border-top-color: #69AB4A;
   border-radius: 50%;
-  animation: curie-spin 0.8s linear infinite;
+  animation: curie-spin .8s linear infinite;
   flex-shrink: 0;
 }
 
@@ -639,14 +736,14 @@
   border-radius: 8px;
   border: none;
   background: #69AB4A;
-  color: #fff;
+  color: #FFFFFF;
   font-weight: 700;
   font-size: 13.5px;
   cursor: pointer;
 }
 
 .curie-resubmit-btn:disabled {
-  opacity: 0.5;
+  opacity: .5;
   cursor: not-allowed;
 }
 
@@ -664,11 +761,11 @@
 .curie-capped-message {
   margin: 10px 0 0;
   padding: 10px 12px;
-  background: #fef3c7;
-  border: 1px solid #f5d98a;
+  background: #FEF3C7;
+  border: 1px solid #F5D98A;
   border-radius: 8px;
   font-size: 13px;
-  color: #7a5b0a;
+  color: #7A5B0A;
   line-height: 1.5;
 }
 
@@ -692,7 +789,7 @@
   width: 100%;
   min-height: 60px;
   padding: 8px 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #D1D5DB;
   border-radius: 6px;
   font-size: 13.5px;
   font-family: inherit;
@@ -701,7 +798,7 @@
 
 .curie-capacity-warning {
   margin: 6px 0 0;
-  color: #b45309;
+  color: #B45309;
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -723,14 +820,14 @@
 
 .curie-edit-cancel {
   flex: 1;
-  background: #f3f4f6;
+  background: #F3F4F6;
   color: #374151;
 }
 
 .curie-edit-submit {
   flex: 2;
   background: #69AB4A;
-  color: #fff;
+  color: #FFFFFF;
 }
 
 .curie-field-feedback-label {
@@ -752,29 +849,29 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #1e3a5f;
-  color: #fff;
+  background: #1E3A5F;
+  color: #FFFFFF;
   font-size: 11px;
   font-weight: 700;
   margin-right: 6px;
 }
 
 .curie-field-feedback-item {
-  border-left: 4px solid #d1d5db;
+  border-left: 4px solid #D1D5DB;
   padding-left: 10px;
   margin-bottom: 14px;
 }
 
 .curie-field-feedback-item.good {
-  border-left-color: #2f9e44;
+  border-left-color: #2F9E44;
 }
 
 .curie-field-feedback-item.could_improve {
-  border-left-color: #e8890c;
+  border-left-color: #E8890C;
 }
 
 .curie-field-feedback-item.needs_revision {
-  border-left-color: #c0392b;
+  border-left-color: #C0392B;
 }
 
 .curie-field-verdict-badge {
@@ -784,20 +881,20 @@
   font-size: 10.5px;
   font-weight: 700;
   vertical-align: middle;
-  color: #fff;
-  background: #9ca3af;
+  color: #FFFFFF;
+  background: #9CA3AF;
 }
 
 .curie-field-verdict-badge.good {
-  background: #2f9e44;
+  background: #2F9E44;
 }
 
 .curie-field-verdict-badge.could_improve {
-  background: #e8890c;
+  background: #E8890C;
 }
 
 .curie-field-verdict-badge.needs_revision {
-  background: #c0392b;
+  background: #C0392B;
 }
 
 .curie-mobile-tabs {
@@ -829,15 +926,15 @@
   text-align: left;
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #6b7280;
+  letter-spacing: .03em;
+  color: #6B7280;
   padding: 8px 4px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #E5E7EB;
 }
 
 .curie-attempt-history-table td {
   padding: 12px 4px;
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid #F1F1F1;
 }
 
 .curie-history-badge {
@@ -845,45 +942,45 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 700;
-  background: #f1f1f1;
-  color: #6b7280;
+  background: #F1F1F1;
+  color: #6B7280;
 }
 
 .curie-history-badge.accepted {
-  background: #d1f4d1;
-  color: #2d6a1f;
+  background: #D1F4D1;
+  color: #2D6A1F;
 }
 
 .curie-history-badge.rejected {
-  background: #f4d1d1;
-  color: #a12b2b;
+  background: #F4D1D1;
+  color: #A12B2B;
 }
 
 .curie-history-view-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #1e3a5f;
-  background: #fff;
-  color: #1e3a5f;
+  border: 1px solid #1E3A5F;
+  background: #FFFFFF;
+  color: #1E3A5F;
   font-weight: 600;
   font-size: 12px;
   cursor: pointer;
 }
 
 .curie-history-view-btn:disabled {
-  border-color: #d1d5db;
-  color: #9ca3af;
+  border-color: #D1D5DB;
+  color: #9CA3AF;
   cursor: not-allowed;
 }
 
 .curie-stars-cell {
-  color: #f5a623;
+  color: #F5A623;
   font-size: 15px;
   letter-spacing: 1px;
 }
 
 .curie-pending-dash {
-  color: #9ca3af;
+  color: #9CA3AF;
 }
 
 @media (width <= 767.98px) {
@@ -911,7 +1008,7 @@
     gap: 10px;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid #f1f1f1;
+    border-top: 1px solid #F1F1F1;
   }
 
   .curie-header-btn {
@@ -925,8 +1022,8 @@
   .curie-mobile-tabs {
     display: flex;
     flex-shrink: 0;
-    background: #fff;
-    border-bottom: 1px solid #e5e7eb;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
   }
 
   .curie-mobile-tabs button {
@@ -936,13 +1033,13 @@
     background: none;
     font-size: 13px;
     font-weight: 600;
-    color: #6b7280;
+    color: #6B7280;
     border-bottom: 2px solid transparent;
     cursor: pointer;
   }
 
   .curie-mobile-tabs button.active {
-    color: #1e3a5f;
+    color: #1E3A5F;
     border-bottom-color: #69AB4A;
   }
 
@@ -969,6 +1066,23 @@
     overflow-y: auto;
   }
 
+  .tas-pdf-status-banner {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .tas-pdf-status-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    width: 100%;
+  }
+
+  .tas-pdf-button {
+    min-height: 40px;
+  }
+
   .curie-history-page-body {
     padding: 14px;
   }
@@ -991,10 +1105,10 @@
 
   .curie-attempt-history-table tr {
     margin-bottom: 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #E5E7EB;
     border-radius: 10px;
     padding: 4px 14px;
-    background: #fff;
+    background: #FFFFFF;
   }
 
   .curie-attempt-history-table td::before {
@@ -1003,9 +1117,9 @@
     margin-bottom: 3px;
     font-weight: 700;
     font-size: 11px;
-    color: #6b7280;
+    color: #6B7280;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: .03em;
   }
 
   .curie-attempt-history-table td:last-child::before {

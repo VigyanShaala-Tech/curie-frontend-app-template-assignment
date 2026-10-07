@@ -16,7 +16,7 @@ export const StudentPage: React.FC = () => {
   const mfeContext = useTasStore((s) => s.mfeContext);
 
   useEffect(() => {
-    if (!usageKey) return;
+    if (!usageKey) { return; }
     setMfeContext(buildStudentMfeContext(usageKey));
   }, [usageKey, setMfeContext]);
 

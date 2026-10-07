@@ -21,17 +21,15 @@ interface Props {
   overrideEditing?: boolean;
 }
 
-function ScoreRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      className="d-flex justify-content-between small py-1"
-      style={{ borderBottom: '1px solid #e9ecef' }}
-    >
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
+const ScoreRow = ({ label, value }: { label: string; value: string }) => (
+  <div
+    className="d-flex justify-content-between small py-1"
+    style={{ borderBottom: '1px solid #e9ecef' }}
+  >
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
 
 export const InstructorCuriePanel: React.FC<Props> = ({
   presentation,

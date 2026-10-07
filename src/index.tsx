@@ -8,7 +8,9 @@ import {
 import { AppProvider, ErrorPage } from '@edx/frontend-platform/react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Routes, Route, Navigate, useLocation, matchPath } from 'react-router-dom';
+import {
+  Routes, Route, Navigate, useLocation,
+} from 'react-router-dom';
 
 import Header from '@edx/frontend-component-header';
 import { FooterSlot } from '@edx/frontend-component-footer';
@@ -19,6 +21,7 @@ import { SubmissionHistoryPage } from './tas/components/SubmissionHistoryPage';
 import { HistoricalReviewPage } from './tas/components/HistoricalReviewPage';
 import { InstructorPage } from './tas/components/InstructorPage';
 import { AdminPage } from './tas/components/AdminPage';
+import { isStudentSubmissionRoute } from './tas/utils/studentSubmissionRoutes';
 
 import './index.scss';
 
@@ -31,7 +34,7 @@ const queryClient = new QueryClient({
 const MOBILE_BREAKPOINT = 768;
 
 /**
- * MFE chrome shell: hide LMS Header/Footer only on the mobile student submission route.
+ * MFE chrome shell: hide LMS Header/Footer on every mobile student submission route.
  */
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -46,9 +49,7 @@ const AppShell: React.FC = () => {
     return () => window.removeEventListener('resize', handle);
   }, []);
 
-  const isStudentSubmission = Boolean(
-    matchPath({ path: '/submission/:usageKey', end: true }, location.pathname),
-  );
+  const isStudentSubmission = isStudentSubmissionRoute(location.pathname);
   const hideChrome = isStudentSubmission && isMobile;
 
   return (

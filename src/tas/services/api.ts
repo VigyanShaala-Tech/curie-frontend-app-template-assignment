@@ -80,13 +80,13 @@ function mapTemplate(raw: any): Template {
     template_type_id: String(raw.template_type),
     template_type: raw.template_type_detail
       ? {
-          id: String(raw.template_type_detail.id),
-          name: raw.template_type_detail.name,
-          slug: raw.template_type_detail.slug,
-          description: raw.template_type_detail.description ?? '',
-          icon: raw.template_type_detail.icon ?? '',
-          is_active: raw.template_type_detail.is_active,
-        }
+        id: String(raw.template_type_detail.id),
+        name: raw.template_type_detail.name,
+        slug: raw.template_type_detail.slug,
+        description: raw.template_type_detail.description ?? '',
+        icon: raw.template_type_detail.icon ?? '',
+        is_active: raw.template_type_detail.is_active,
+      }
       : undefined,
     name: raw.name,
     description: raw.description ?? '',
@@ -181,8 +181,8 @@ export const templatesApi = {
     active_only?: boolean;
   }): Promise<{ count: number; results: Template[] }> => {
     const query: Record<string, any> = { page_size: 24 };
-    if (params?.template_type) query.template_type = params.template_type;
-    if (params?.is_public !== undefined) query.is_public = params.is_public;
+    if (params?.template_type) { query.template_type = params.template_type; }
+    if (params?.is_public !== undefined) { query.is_public = params.is_public; }
     const { data } = await http().get(`${tasBase()}/templates/`, { params: query });
     const raw: any[] = Array.isArray(data) ? data : (data.results ?? []);
     let results: Template[] = raw.map(mapTemplate);
@@ -218,24 +218,24 @@ export const adminTemplatesApi = {
     fd.append('field_positions', JSON.stringify(body.field_positions));
     fd.append('is_public', String(body.is_public));
     fd.append('is_active', 'true');
-    if (body.imageFile) fd.append('image', body.imageFile);
-    if (body.thumbnailFile) fd.append('thumbnail', body.thumbnailFile);
+    if (body.imageFile) { fd.append('image', body.imageFile); }
+    if (body.thumbnailFile) { fd.append('thumbnail', body.thumbnailFile); }
     const { data } = await http().post(`${tasBase()}/templates/`, fd);
     return mapTemplate(data);
   },
 
   update: async (id: string, body: TemplateUpdateBody): Promise<Template> => {
     const fd = new FormData();
-    if (body.template_type_id !== undefined) fd.append('template_type', String(Number(body.template_type_id)));
-    if (body.name !== undefined) fd.append('name', body.name);
-    if (body.description !== undefined) fd.append('description', body.description);
-    if (body.image_width !== undefined) fd.append('image_width', String(body.image_width));
-    if (body.image_height !== undefined) fd.append('image_height', String(body.image_height));
-    if (body.fields !== undefined) fd.append('fields', JSON.stringify(body.fields));
-    if (body.field_positions !== undefined) fd.append('field_positions', JSON.stringify(body.field_positions));
-    if (body.is_public !== undefined) fd.append('is_public', String(body.is_public));
-    if (body.imageFile) fd.append('image', body.imageFile);
-    if (body.thumbnailFile) fd.append('thumbnail', body.thumbnailFile);
+    if (body.template_type_id !== undefined) { fd.append('template_type', String(Number(body.template_type_id))); }
+    if (body.name !== undefined) { fd.append('name', body.name); }
+    if (body.description !== undefined) { fd.append('description', body.description); }
+    if (body.image_width !== undefined) { fd.append('image_width', String(body.image_width)); }
+    if (body.image_height !== undefined) { fd.append('image_height', String(body.image_height)); }
+    if (body.fields !== undefined) { fd.append('fields', JSON.stringify(body.fields)); }
+    if (body.field_positions !== undefined) { fd.append('field_positions', JSON.stringify(body.field_positions)); }
+    if (body.is_public !== undefined) { fd.append('is_public', String(body.is_public)); }
+    if (body.imageFile) { fd.append('image', body.imageFile); }
+    if (body.thumbnailFile) { fd.append('thumbnail', body.thumbnailFile); }
     const { data } = await http().patch(`${tasBase()}/templates/${id}/`, fd);
     return mapTemplate(data);
   },
@@ -440,10 +440,8 @@ export const adminSubmissionsApi = {
     page_size?: number;
   }): Promise<AdminSubmissionListResponse> => {
     const usageKey = params?.usage_key ?? '';
-    const {
-      usage_key: _usageKey,
-      ...queryParams
-    } = params ?? {};
+    const queryParams = { ...params };
+    delete queryParams.usage_key;
     const { data } = await http().get(
       `${tasBase()}/block/${encodeURIComponent(usageKey)}/submissions/`,
       {
@@ -459,7 +457,7 @@ export const adminSubmissionsApi = {
     }));
     const count = typeof data?.count === 'number' ? data.count : results.length;
     const rawCounts = data?.status_counts;
-    const status_counts: AdminSubmissionListStatusCounts = {
+    const statusCounts: AdminSubmissionListStatusCounts = {
       submitted: typeof rawCounts?.submitted === 'number' ? rawCounts.submitted : 0,
       approved: typeof rawCounts?.approved === 'number' ? rawCounts.approved : 0,
       rejected: typeof rawCounts?.rejected === 'number' ? rawCounts.rejected : 0,
@@ -469,7 +467,7 @@ export const adminSubmissionsApi = {
       next: data?.next ?? null,
       previous: data?.previous ?? null,
       results: count > 0 ? results : [],
-      status_counts,
+      status_counts: statusCounts,
     };
   },
 

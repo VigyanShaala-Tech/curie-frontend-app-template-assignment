@@ -99,13 +99,17 @@ function readyCurieSubmission(status: 'approved' | 'rejected') {
       source: 'curie',
       status,
       comment: OVERALL,
-      rubrics: [{ criterion: 'Task Relevance', selected_option: 'Score: 9', marks: 9, score: 9 }],
+      rubrics: [{
+        criterion: 'Task Relevance', selected_option: 'Score: 9', marks: 9, score: 9,
+      }],
       versions: [{
         version_number: 1,
         status,
         created: '2026-09-13T00:00:01Z',
         comment: OVERALL,
-        rubrics: [{ criterion: 'Task Relevance', selected_option: 'Score: 9', marks: 9, score: 9 }],
+        rubrics: [{
+          criterion: 'Task Relevance', selected_option: 'Score: 9', marks: 9, score: 9,
+        }],
       }],
     },
   });

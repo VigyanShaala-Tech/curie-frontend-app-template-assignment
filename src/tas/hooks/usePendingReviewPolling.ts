@@ -12,9 +12,10 @@ interface Options<T> {
 }
 
 /**
- * One timer while a CURIE (or legacy unreviewed) review is pending.
- * Stops on terminal status or unmount, refetches on window focus, and
- * remembers that this session observed pending (live-failure vs cold-failure).
+ * Refreshes every enabled submission on mount/focus, preserving the legacy
+ * finalized-feedback refresh. Adds one timer only while a CURIE (or legacy
+ * unreviewed) review is pending, and remembers that this session observed
+ * pending (live-failure vs cold-failure).
  */
 export function usePendingReviewPolling<T>({
   enabled,
@@ -41,7 +42,7 @@ export function usePendingReviewPolling<T>({
   }, [isPending, identity]);
 
   useEffect(() => {
-    if (!enabled || !isPending) {
+    if (!enabled) {
       return undefined;
     }
 
@@ -62,7 +63,9 @@ export function usePendingReviewPolling<T>({
     };
 
     refresh();
-    intervalId = setInterval(refresh, intervalMs);
+    if (isPending) {
+      intervalId = setInterval(refresh, intervalMs);
+    }
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
 

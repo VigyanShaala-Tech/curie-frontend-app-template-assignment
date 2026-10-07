@@ -5,14 +5,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { CurieReviewScreen } from './CurieReviewScreen';
 import type { LearnerCurieReview, Template } from '../types';
 
-jest.mock('./TemplateCanvas', () => {
-  const React = require('react');
-  return {
-    TemplateCanvas: ({ overlay, fitToPane }: { overlay?: React.ReactNode; fitToPane?: boolean }) => (
-      React.createElement('div', { 'data-fit-pane': fitToPane ? 'true' : 'false' }, 'worksheet-canvas', overlay)
-    ),
-  };
-});
+jest.mock('./TemplateCanvas', () => ({
+  TemplateCanvas: ({ overlay, fitToPane }: { overlay?: React.ReactNode; fitToPane?: boolean }) => (
+    <div data-fit-pane={fitToPane ? 'true' : 'false'}>
+      worksheet-canvas
+      {overlay}
+    </div>
+  ),
+}));
 
 const template: Template = {
   id: '1',
@@ -24,12 +24,20 @@ const template: Template = {
   image_height: 1123,
   thumbnail_url: '',
   fields: [
-    { id: 'goal', label: 'Goal', type: 'textarea', required: true },
-    { id: 'contribution', label: 'Contribution', type: 'textarea', required: false },
+    {
+      id: 'goal', label: 'Goal', type: 'textarea', required: true,
+    },
+    {
+      id: 'contribution', label: 'Contribution', type: 'textarea', required: false,
+    },
   ],
   field_positions: {
-    goal: { x: 10, y: 10, width: 80, height: 10 },
-    contribution: { x: 10, y: 70, width: 80, height: 10 },
+    goal: {
+      x: 10, y: 10, width: 80, height: 10,
+    },
+    contribution: {
+      x: 10, y: 70, width: 80, height: 10,
+    },
   },
   is_public: true,
   is_active: true,
@@ -100,7 +108,9 @@ describe('CurieReviewScreen', () => {
   it('shows pending copy and no reattempt while CURIE is evaluating', () => {
     renderScreen({
       displayState: 'pending',
-      review: { ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [] },
+      review: {
+        ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [],
+      },
       canReattempt: false,
     });
     expect(screen.getByText(/Curie is reviewing your submission/)).toBeTruthy();
@@ -111,7 +121,9 @@ describe('CurieReviewScreen', () => {
     renderScreen({
       displayState: 'pending',
       isSlowPending: true,
-      review: { ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [] },
+      review: {
+        ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [],
+      },
       canReattempt: false,
     });
     expect(screen.getByText(/taking longer than usual/)).toBeTruthy();
@@ -120,7 +132,9 @@ describe('CurieReviewScreen', () => {
   it('shows live-failure copy and a reattempt action', () => {
     renderScreen({
       displayState: 'live_failed',
-      review: { ...readyReview, status: 'failed', verdict: null, field_feedback: [] },
+      review: {
+        ...readyReview, status: 'failed', verdict: null, field_feedback: [],
+      },
     });
     expect(screen.getByText(/wasn't able to complete a review/)).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Reattempt' }).length).toBeGreaterThan(0);
@@ -162,7 +176,9 @@ describe('CurieReviewScreen', () => {
     unmount();
 
     renderScreen({
-      review: { ...readyReview, field_feedback: [], star_rating: null, overall_feedback: 'Gate failed.' },
+      review: {
+        ...readyReview, field_feedback: [], star_rating: null, overall_feedback: 'Gate failed.',
+      },
     });
     expect(screen.getByText('Gate failed.')).toBeTruthy();
     expect(screen.queryByLabelText(/out of 5 stars/)).toBeNull();
@@ -234,7 +250,9 @@ describe('CurieReviewScreen', () => {
   it('locks the worksheet when a live-failed reattempt becomes pending', async () => {
     const view = renderScreen({
       displayState: 'live_failed',
-      review: { ...readyReview, status: 'failed', verdict: null, field_feedback: [] },
+      review: {
+        ...readyReview, status: 'failed', verdict: null, field_feedback: [],
+      },
     });
     await userEvent.click(screen.getAllByRole('button', { name: 'Reattempt' })[0]);
     expect(screen.getByLabelText('Goal')).toBeTruthy();
@@ -276,8 +294,12 @@ describe('CurieReviewScreen', () => {
         image_width: 40,
         image_height: 40,
         field_positions: {
-          goal: { x: 0, y: 0, width: 8, height: 6 },
-          contribution: { x: 0, y: 20, width: 8, height: 6 },
+          goal: {
+            x: 0, y: 0, width: 8, height: 6,
+          },
+          contribution: {
+            x: 0, y: 20, width: 8, height: 6,
+          },
         },
       },
     });

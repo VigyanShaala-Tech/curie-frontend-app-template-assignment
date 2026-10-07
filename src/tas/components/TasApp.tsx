@@ -9,7 +9,9 @@
  *   5. Student hits "Submit" to finalise (draft also persists via Save & Go Back)
  */
 
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, {
+  useEffect, useCallback, useRef, useState,
+} from 'react';
 import { Button, ModalDialog, ActionRow } from '@openedx/paragon';
 
 import { TemplateSelector } from './TemplateSelector';
@@ -82,9 +84,9 @@ export const TasApp: React.FC = () => {
 
   // ── Create or retrieve draft when template is selected ────────────────────
   useEffect(() => {
-    if (!selectedTemplate || !selectedTemplateBlockId || !mfeContext) return;
-    if (submission) return;
-    if (draftCreating.current) return;
+    if (!selectedTemplate || !selectedTemplateBlockId || !mfeContext) { return; }
+    if (submission) { return; }
+    if (draftCreating.current) { return; }
 
     draftCreating.current = true;
 
@@ -105,8 +107,7 @@ export const TasApp: React.FC = () => {
         draftCreating.current = false;
         const responseData = err?.response?.data;
         let msg = 'Failed to start assignment. Please reload and try again.';
-        if (responseData?.detail) msg = responseData.detail;
-        else if (responseData?.non_field_errors) {
+        if (responseData?.detail) { msg = responseData.detail; } else if (responseData?.non_field_errors) {
           msg = Array.isArray(responseData.non_field_errors)
             ? responseData.non_field_errors.join('\n')
             : responseData.non_field_errors;
@@ -116,7 +117,7 @@ export const TasApp: React.FC = () => {
           const fieldErrors = Object.entries(responseData)
             .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
             .join('\n');
-          if (fieldErrors) msg = fieldErrors;
+          if (fieldErrors) { msg = fieldErrors; }
         }
         alert(msg);
         clearSelection();
@@ -140,7 +141,7 @@ export const TasApp: React.FC = () => {
     ),
   );
   const { observedPending } = usePendingReviewPolling({
-    enabled: shouldPoll,
+    enabled: Boolean(submission?.id && submission.status !== 'draft'),
     isPending: shouldPoll,
     identity: submission ? `${submission.id}:${submission.version_number}` : null,
     fetcher: () => submissionsApi.get(submission!.id),
@@ -180,10 +181,10 @@ export const TasApp: React.FC = () => {
     let cancelled = false;
     submissionsApi.getCurieReview(submission.id)
       .then((payload) => {
-        if (!cancelled) setLearnerReview(payload);
+        if (!cancelled) { setLearnerReview(payload); }
       })
       .catch(() => {
-        if (!cancelled) setLearnerReview(null);
+        if (!cancelled) { setLearnerReview(null); }
       });
     return () => {
       cancelled = true;
@@ -204,13 +205,13 @@ export const TasApp: React.FC = () => {
     const loadVersions = () => {
       submissionsApi.getVersions(submission.id)
         .then((res) => {
-          if (!cancelled) setVersionHistory(res.versions);
+          if (!cancelled) { setVersionHistory(res.versions); }
         })
         .catch(() => {
-          if (!cancelled) setVersionHistory([]);
+          if (!cancelled) { setVersionHistory([]); }
         })
         .finally(() => {
-          if (!cancelled) setVersionsLoading(false);
+          if (!cancelled) { setVersionsLoading(false); }
         });
     };
 
@@ -228,14 +229,14 @@ export const TasApp: React.FC = () => {
     // formData (committed values) is unchanged; only dismisses the popup UI.
     useTasStore.getState().closeFieldEditor();
 
-    if (!selectedTemplate) return;
+    if (!selectedTemplate) { return; }
     const imageW = selectedTemplate.image_width || 794;
     const imageH = selectedTemplate.image_height || 1123;
 
     const fieldsHtml = selectedTemplate.fields.map((field) => {
       const pos = selectedTemplate.field_positions[field.id];
       const value = formData[field.id] ?? '';
-      if (!pos || !value) return '';
+      if (!pos || !value) { return ''; }
       const layout = resolveFieldLayout(field, pos, imageW, imageH);
       return `
         <div style="
@@ -269,7 +270,7 @@ export const TasApp: React.FC = () => {
     const triggerPrint = (doc: Document, win: Window) => {
       let printed = false;
       const runPrint = () => {
-        if (printed) return;
+        if (printed) { return; }
         printed = true;
         try {
           win.focus();
@@ -311,7 +312,7 @@ export const TasApp: React.FC = () => {
 
     // Mobile / popup-blocked: same-tab hidden iframe (reuse same HTML generation).
     const existing = document.getElementById('tas-print-iframe');
-    if (existing) existing.remove();
+    if (existing) { existing.remove(); }
 
     const iframe = document.createElement('iframe');
     iframe.id = 'tas-print-iframe';
@@ -337,21 +338,6 @@ export const TasApp: React.FC = () => {
     }, 60_000);
   }, [selectedTemplate, formData, isMobile]);
 
-  // ── Save draft handler ─────────────────────────────────────────────────────
-  const handleSaveDraft = useCallback(async () => {
-    if (!submission || submission.status !== 'draft') return;
-    try {
-      setIsSaving(true);
-      const updated = await submissionsApi.patch(submission.id, formData);
-      setSubmission(updated);
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Failed to save draft.';
-      alert(msg);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [submission, formData, setIsSaving, setSubmission]);
-
   // ── Submit handler ─────────────────────────────────────────────────────────
   const clampFormDataForSubmit = useCallback((data: Record<string, string>) => {
     if (!selectedTemplate) {
@@ -367,7 +353,7 @@ export const TasApp: React.FC = () => {
         return;
       }
       const pos = selectedTemplate.field_positions[field.id];
-      if (!pos) return;
+      if (!pos) { return; }
       layoutsByFieldId[field.id] = resolveFieldLayout(field, pos, imageW, imageH);
     });
 
@@ -375,7 +361,7 @@ export const TasApp: React.FC = () => {
   }, [selectedTemplate]);
 
   const submitAssignment = useCallback(async (answers?: Record<string, string>) => {
-    if (!submission || !(lifecycle.canSubmit || lifecycle.canReattempt)) return;
+    if (!submission || !(lifecycle.canSubmit || lifecycle.canReattempt)) { return; }
     const sourceData = answers ?? formData;
 
     try {
@@ -417,14 +403,23 @@ export const TasApp: React.FC = () => {
           const fieldErrors = Object.entries(responseData)
             .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
             .join('\n');
-          if (fieldErrors) errorMsg = fieldErrors;
+          if (fieldErrors) { errorMsg = fieldErrors; }
         }
       }
       alert(errorMsg);
     } finally {
       setIsSaving(false);
     }
-  }, [submission, formData, setIsSaving, setSubmission, setFormData, clampFormDataForSubmit, lifecycle.canSubmit, lifecycle.canReattempt]);
+  }, [
+    submission,
+    formData,
+    setIsSaving,
+    setSubmission,
+    setFormData,
+    clampFormDataForSubmit,
+    lifecycle.canSubmit,
+    lifecycle.canReattempt,
+  ]);
 
   const handleSubmit = useCallback((answers?: Record<string, string>) => {
     // Close editor first so Submit is reachable while the popup is open.
@@ -433,7 +428,7 @@ export const TasApp: React.FC = () => {
 
     const sourceData = answers ?? formData;
     const canGo = lifecycle.canSubmit || lifecycle.canReattempt;
-    if (!submission || !canGo) return;
+    if (!submission || !canGo) { return; }
 
     const activeFields = getActiveFields(selectedTemplate);
 
@@ -466,7 +461,7 @@ export const TasApp: React.FC = () => {
 
   const handleOptionalConfirmSubmit = useCallback(() => {
     setOptionalFieldsModalOpen(false);
-    void submitAssignment(pendingSubmitAnswers.current ?? undefined);
+    submitAssignment(pendingSubmitAnswers.current ?? undefined);
   }, [submitAssignment]);
 
   const handleConfirmSubmitCancel = useCallback(() => {
@@ -475,12 +470,12 @@ export const TasApp: React.FC = () => {
 
   const handleConfirmSubmitConfirm = useCallback(() => {
     setConfirmSubmitModalOpen(false);
-    void submitAssignment(pendingSubmitAnswers.current ?? undefined);
+    submitAssignment(pendingSubmitAnswers.current ?? undefined);
   }, [submitAssignment]);
 
   // ── Edit Assignment (rejected → draft reopen) ──────────────────────────────
   const handleEditAssignment = useCallback(async () => {
-    if (!submission || submission.status !== 'rejected') return;
+    if (!submission || submission.status !== 'rejected') { return; }
     try {
       setIsSaving(true);
       // Preserve intentional Clear All: if local form is empty, do not reload server answers
@@ -526,7 +521,7 @@ export const TasApp: React.FC = () => {
   });
 
   const handleSaveDraftAndGoBack = useCallback(async () => {
-    if (!submission || submission.status !== 'draft') return;
+    if (!submission || submission.status !== 'draft') { return; }
     try {
       setIsSaving(true);
       const updated = await submissionsApi.patch(submission.id, formData);
@@ -602,6 +597,7 @@ export const TasApp: React.FC = () => {
           isSlowPending={lifecycle.isSlowPending}
           isSaving={isSaving}
           isMobile={isMobile}
+          submission={submission}
           onBack={() => navigateBackToAssignment(mfeContext)}
           onRequestSubmit={handleSubmit}
         />
@@ -813,7 +809,8 @@ export const TasApp: React.FC = () => {
               padding: '6px 14px',
               fontWeight: 600,
               fontSize: 13,
-            }}>
+            }}
+            >
               ✓ Submitted
             </span>
           )}
@@ -885,7 +882,10 @@ export const TasApp: React.FC = () => {
 
       {/* PDF / submission status banner */}
       {isLocked && (
-        <div style={{ flexShrink: 0, padding: '0 16px 16px', background: '#fff', borderTop: '1px solid #e5e7eb' }}>
+        <div style={{
+          flexShrink: 0, padding: '0 16px 16px', background: '#fff', borderTop: '1px solid #e5e7eb',
+        }}
+        >
           <PdfPoller />
         </div>
       )}

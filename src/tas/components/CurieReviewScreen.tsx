@@ -4,13 +4,16 @@
  * Chat is out of scope.
  */
 
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect, useLayoutEffect, useMemo, useState,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { TemplateCanvas } from './TemplateCanvas';
 import { CuriePinOverlay } from './CuriePinOverlay';
 import { CurieReviewList } from './CurieReviewList';
 import { CurieReviewPending } from './CurieReviewPending';
 import { CurieStarRating } from './CurieStarRating';
+import { PdfPoller } from './PdfPoller';
 import { getActiveFields } from '../utils/activeFields';
 import { applyTextCandidate } from '../utils/clampTextToField';
 import { resolveFieldLayout } from '../utils/fieldLayout';
@@ -21,7 +24,9 @@ import {
   orderFieldFeedback,
 } from '../utils/curieReview';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
-import type { FormField, LearnerCurieReview, Template } from '../types';
+import type {
+  FormField, LearnerCurieReview, Submission, Template,
+} from '../types';
 
 interface Props {
   template: Template;
@@ -38,6 +43,7 @@ interface Props {
   isMobile: boolean;
   historical?: boolean;
   attemptNumber?: number | null;
+  submission?: Submission | null;
   onBack: () => void;
   onRequestSubmit: (formData: Record<string, string>) => void;
 }
@@ -57,6 +63,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   isMobile,
   historical = false,
   attemptNumber,
+  submission,
   onBack,
   onRequestSubmit,
 }) => {
@@ -78,8 +85,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
   }, [pending, canReattempt, atMaxAttempts, historical, displayState, review?.submission_version_number]);
 
   useLayoutEffect(() => {
-    if (!pendingPinScroll) return;
-    if (isMobile && mobileTab !== 'review') return;
+    if (!pendingPinScroll) { return; }
+    if (isMobile && mobileTab !== 'review') { return; }
     document.getElementById(`curie-field-review-${pendingPinScroll}`)?.scrollIntoView({
       block: 'nearest',
     });
@@ -96,12 +103,19 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const showCap = !historical && (rejected || liveFailed) && atMaxAttempts;
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
 
-  const verdictLabel = pending
-    ? 'Pending Evaluation'
-    : liveFailed
-      ? 'Review Unavailable'
-      : learnerVerdictLabel(review?.status, review?.verdict ?? (accepted ? 'accepted' : 'rejected'));
-  const verdictClass = pending || liveFailed ? '' : (accepted || review?.verdict === 'accepted' ? 'accepted' : 'rejected');
+  let verdictLabel = learnerVerdictLabel(
+    review?.status,
+    review?.verdict ?? (accepted ? 'accepted' : 'rejected'),
+  );
+  if (pending) {
+    verdictLabel = 'Pending Evaluation';
+  } else if (liveFailed) {
+    verdictLabel = 'Review Unavailable';
+  }
+  let verdictClass = '';
+  if (!pending && !liveFailed) {
+    verdictClass = accepted || review?.verdict === 'accepted' ? 'accepted' : 'rejected';
+  }
 
   const activeFields = getActiveFields(template);
   const fieldLayouts = useMemo(() => {
@@ -114,7 +128,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
         return;
       }
       const pos = template.field_positions[field.id];
-      if (!pos) return;
+      if (!pos) { return; }
       layouts[field.id] = resolveFieldLayout(field, pos, imageW, imageH);
     });
     return layouts;
@@ -145,26 +159,29 @@ export const CurieReviewScreen: React.FC<Props> = ({
     }
   };
 
-  const reviewBody = pending ? (
-    <CurieReviewPending variant={isSlowPending ? 'slow' : 'pending'} />
-  ) : liveFailed ? (
-    historical ? (
+  let reviewBody: React.ReactNode;
+  if (pending) {
+    reviewBody = <CurieReviewPending variant={isSlowPending ? 'slow' : 'pending'} />;
+  } else if (liveFailed && historical) {
+    reviewBody = (
       <div>
         <h3 className="curie-review-heading">Curie Review</h3>
         <p className="curie-pending-note">{HISTORICAL_FAILED_COPY}</p>
       </div>
-    ) : (
-      <CurieReviewPending variant="live_failed" />
-    )
-  ) : (
-    <div>
-      <h3 className="curie-review-heading">Curie Review</h3>
-      {showStars && <CurieStarRating rating={review?.star_rating} />}
-      <div className="curie-section-title">Overall Feedback</div>
-      <div className="curie-overall-feedback">{review?.overall_feedback || 'No overall feedback.'}</div>
-      <CurieReviewList fields={template.fields} feedback={orderedFeedback} />
-    </div>
-  );
+    );
+  } else if (liveFailed) {
+    reviewBody = <CurieReviewPending variant="live_failed" />;
+  } else {
+    reviewBody = (
+      <div>
+        <h3 className="curie-review-heading">Curie Review</h3>
+        {showStars && <CurieStarRating rating={review?.star_rating} />}
+        <div className="curie-section-title">Overall Feedback</div>
+        <div className="curie-overall-feedback">{review?.overall_feedback || 'No overall feedback.'}</div>
+        <CurieReviewList fields={template.fields} feedback={orderedFeedback} />
+      </div>
+    );
+  }
 
   const reattemptButton = (className: string) => (
     <button
@@ -176,6 +193,41 @@ export const CurieReviewScreen: React.FC<Props> = ({
       Reattempt
     </button>
   );
+
+  let leftActions: React.ReactNode = null;
+  if (editing) {
+    leftActions = (
+      <div className="curie-edit-form-buttons">
+        <button
+          type="button"
+          className="curie-edit-cancel"
+          onClick={() => setEditing(false)}
+          disabled={isSaving}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="curie-edit-submit"
+          onClick={() => onRequestSubmit(draft)}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Submitting…' : 'Submit'}
+        </button>
+      </div>
+    );
+  } else if (allowReattempt) {
+    leftActions = reattemptButton('curie-resubmit-btn curie-bottom-btn');
+  } else if (showCap) {
+    leftActions = (
+      <>
+        <button type="button" className="curie-resubmit-btn curie-bottom-btn" disabled>
+          Reattempt
+        </button>
+        <p className="curie-capped-message">{CAP_REACHED_MESSAGE}</p>
+      </>
+    );
+  }
 
   return (
     <div className="curie-review-root">
@@ -263,7 +315,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                       isMobile={isMobile}
                       onActivate={(fieldId) => {
                         setPendingPinScroll(fieldId);
-                        if (isMobile) setMobileTab('review');
+                        if (isMobile) { setMobileTab('review'); }
                       }}
                     />
                   ) : null}
@@ -272,37 +324,10 @@ export const CurieReviewScreen: React.FC<Props> = ({
             </div>
             {(allowReattempt || showCap) && (
               <div className="curie-left-actions">
-                {editing ? (
-                  <div className="curie-edit-form-buttons">
-                    <button
-                      type="button"
-                      className="curie-edit-cancel"
-                      onClick={() => setEditing(false)}
-                      disabled={isSaving}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="curie-edit-submit"
-                      onClick={() => onRequestSubmit(draft)}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? 'Submitting…' : 'Submit'}
-                    </button>
-                  </div>
-                ) : allowReattempt ? (
-                  reattemptButton('curie-resubmit-btn curie-bottom-btn')
-                ) : showCap ? (
-                  <>
-                    <button type="button" className="curie-resubmit-btn curie-bottom-btn" disabled>
-                      Reattempt
-                    </button>
-                    <p className="curie-capped-message">{CAP_REACHED_MESSAGE}</p>
-                  </>
-                ) : null}
+                {leftActions}
               </div>
             )}
+            {!historical && submission && <PdfPoller submissionOverride={submission} />}
           </div>
         </div>
 
