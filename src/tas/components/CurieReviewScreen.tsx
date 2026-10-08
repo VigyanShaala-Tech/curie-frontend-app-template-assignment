@@ -7,6 +7,7 @@
 import React, {
   useEffect, useLayoutEffect, useMemo, useState,
 } from 'react';
+import { ActionRow, Button, ModalDialog } from '@openedx/paragon';
 import { Link } from 'react-router-dom';
 import { TemplateCanvas } from './TemplateCanvas';
 import { CuriePinOverlay } from './CuriePinOverlay';
@@ -69,6 +70,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
 }) => {
   const [mobileTab, setMobileTab] = useState<'worksheet' | 'review'>('worksheet');
   const [editing, setEditing] = useState(false);
+  const [previewingDraft, setPreviewingDraft] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(formData);
   const [capacityFull, setCapacityFull] = useState<Record<string, boolean>>({});
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
@@ -81,6 +84,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
   useEffect(() => {
     if (pending || !canReattempt || atMaxAttempts || historical) {
       setEditing(false);
+      setPreviewingDraft(false);
+      setClearConfirmOpen(false);
     }
   }, [pending, canReattempt, atMaxAttempts, historical, displayState, review?.submission_version_number]);
 
@@ -150,7 +155,20 @@ export const CurieReviewScreen: React.FC<Props> = ({
     setDraft({ ...formData });
     setCapacityFull({});
     setEditing(true);
+    setPreviewingDraft(false);
     setMobileTab('worksheet');
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setPreviewingDraft(false);
+    setClearConfirmOpen(false);
+  };
+
+  const clearDraft = () => {
+    setDraft({});
+    setCapacityFull({});
+    setClearConfirmOpen(false);
   };
 
   const confirmOpenEdit = () => {
@@ -183,14 +201,14 @@ export const CurieReviewScreen: React.FC<Props> = ({
     );
   }
 
-  const reattemptButton = (className: string) => (
+  const editAssignmentButton = (className: string) => (
     <button
       type="button"
       className={className}
       onClick={confirmOpenEdit}
       disabled={isSaving}
     >
-      Reattempt
+      Edit Assignment
     </button>
   );
 
@@ -201,7 +219,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
         <button
           type="button"
           className="curie-edit-cancel"
-          onClick={() => setEditing(false)}
+          onClick={cancelEdit}
           disabled={isSaving}
         >
           Cancel
@@ -216,13 +234,11 @@ export const CurieReviewScreen: React.FC<Props> = ({
         </button>
       </div>
     );
-  } else if (allowReattempt) {
-    leftActions = reattemptButton('curie-resubmit-btn curie-bottom-btn');
   } else if (showCap) {
     leftActions = (
       <>
         <button type="button" className="curie-resubmit-btn curie-bottom-btn" disabled>
-          Reattempt
+          Edit Assignment
         </button>
         <p className="curie-capped-message">{CAP_REACHED_MESSAGE}</p>
       </>
@@ -245,7 +261,30 @@ export const CurieReviewScreen: React.FC<Props> = ({
         </h2>
         <div className="curie-status-row">
           <span className={`curie-verdict-badge ${verdictClass}`}>{verdictLabel}</span>
-          {allowReattempt && !editing && reattemptButton('curie-resubmit-btn curie-header-btn')}
+          {allowReattempt && !editing
+            && editAssignmentButton('curie-resubmit-btn curie-header-btn')}
+          {editing && (
+            <div className="curie-edit-header-actions">
+              <button
+                type="button"
+                className="curie-edit-mode-btn"
+                onClick={() => setPreviewingDraft((current) => !current)}
+                disabled={isSaving}
+              >
+                {previewingDraft ? 'Edit' : 'Preview'}
+              </button>
+              {!previewingDraft && (
+                <button
+                  type="button"
+                  className="curie-edit-mode-btn"
+                  onClick={() => setClearConfirmOpen(true)}
+                  disabled={isSaving}
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+          )}
           {!historical && (
             <Link className="curie-history-link" to={historyHref}>View Submission History</Link>
           )}
@@ -277,7 +316,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
         <div className={`curie-half-left ${mobileTab === 'worksheet' ? 'mobile-active' : ''}`}>
           <div className="curie-panel">
             <div className="curie-left-scroll">
-              {editing ? (
+              {editing && !previewingDraft ? (
                 <form
                   className="curie-edit-form"
                   onSubmit={(event) => {
@@ -306,7 +345,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                   template={template}
                   readOnly
                   fitToPane
-                  formDataOverride={formData}
+                  formDataOverride={editing ? draft : formData}
                   overlay={showPins ? (
                     <CuriePinOverlay
                       fields={template.fields}
@@ -339,6 +378,37 @@ export const CurieReviewScreen: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {editing && (
+        <ModalDialog
+          title="Clear Assignment?"
+          isOpen={clearConfirmOpen}
+          onClose={() => setClearConfirmOpen(false)}
+          size="md"
+          hasCloseButton
+          isOverflowVisible={false}
+        >
+          <ModalDialog.Header>
+            <ModalDialog.Title>Clear Assignment?</ModalDialog.Title>
+          </ModalDialog.Header>
+          <ModalDialog.Body>
+            <p className="mb-0">
+              This will remove all responses currently shown in the assignment form.
+              The previous submitted attempt will not be changed.
+            </p>
+          </ModalDialog.Body>
+          <ModalDialog.Footer>
+            <ActionRow>
+              <ModalDialog.CloseButton variant="tertiary">
+                Cancel
+              </ModalDialog.CloseButton>
+              <Button variant="danger" onClick={clearDraft}>
+                Clear All
+              </Button>
+            </ActionRow>
+          </ModalDialog.Footer>
+        </ModalDialog>
+      )}
     </div>
   );
 };

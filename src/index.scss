@@ -752,6 +752,29 @@
   font-size: 13px;
 }
 
+.curie-edit-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.curie-edit-mode-btn {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #1E3A5F;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #1E3A5F;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.curie-edit-mode-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 .curie-bottom-btn {
   width: 100%;
   padding: 12px;
@@ -1011,12 +1034,30 @@
     border-top: 1px solid #F1F1F1;
   }
 
-  .curie-header-btn {
-    display: none;
+  .curie-header-btn,
+  .curie-edit-mode-btn {
+    min-height: 40px;
+  }
+
+  .curie-edit-header-actions {
+    flex-wrap: wrap;
   }
 
   .curie-history-link {
     margin-left: auto;
+  }
+
+  .curie-left-actions {
+    padding: 12px 14px;
+  }
+
+  .curie-edit-form-buttons {
+    width: 100%;
+  }
+
+  .curie-edit-cancel,
+  .curie-edit-submit {
+    min-height: 44px;
   }
 
   .curie-mobile-tabs {
