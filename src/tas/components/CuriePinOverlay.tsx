@@ -17,13 +17,13 @@ export const CuriePinOverlay: React.FC<Props> = ({
   isMobile = false,
   onActivate,
 }) => {
-  if (!feedback.length) return null;
+  if (!feedback.length) { return null; }
 
   return (
     <div className="curie-pin-overlay" aria-hidden={false}>
       {feedback.map((entry, index) => {
         const position = positions[entry.field_id];
-        if (!position) return null;
+        if (!position) { return null; }
         const n = index + 1;
         const label = fieldLabel(fields, entry.field_id);
         return (

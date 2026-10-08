@@ -7,7 +7,7 @@ export function fitScaleToWidth(
   naturalW: number,
   padding: number,
 ): number {
-  if (clientWidth <= 0 || naturalW <= 0) return 1;
+  if (clientWidth <= 0 || naturalW <= 0) { return 1; }
   return Math.min(1, (clientWidth - padding) / naturalW);
 }
 
@@ -20,7 +20,7 @@ export function fitScaleToBox(
   padding: number,
 ): number {
   const scaleW = fitScaleToWidth(clientWidth, naturalW, padding);
-  if (clientHeight <= 0 || naturalH <= 0) return scaleW;
+  if (clientHeight <= 0 || naturalH <= 0) { return scaleW; }
   const scaleH = Math.min(1, (clientHeight - padding) / naturalH);
   return Math.min(scaleW, scaleH);
 }

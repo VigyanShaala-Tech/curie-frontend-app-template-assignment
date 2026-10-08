@@ -6,83 +6,100 @@
 import React, { useEffect, useState } from 'react';
 import { submissionsApi } from '../services/api';
 import { useTasStore } from '../store/tasStore';
+import { downloadPdf } from '../utils/downloadPdf';
+import type { Submission } from '../types';
 
 const MAX_POLLS = 15; // 15 × 2s = 30s
 
-export const PdfPoller: React.FC = () => {
-  const { submission, setSubmission } = useTasStore();
+interface Props {
+  submissionOverride?: Submission | null;
+}
+
+export const PdfPoller: React.FC<Props> = ({ submissionOverride }) => {
+  const storeSubmission = useTasStore((state) => state.submission);
+  const setSubmission = useTasStore((state) => state.setSubmission);
+  const submission = submissionOverride ?? storeSubmission;
+  const submissionId = submission?.id;
+  const submissionPdfUrl = submission?.pdf_url;
+  const submissionStatus = submission?.status;
   const [pdfUrl, setPdfUrl] = useState<string | null>(submission?.pdf_url || null);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!submission || submission.status !== 'submitted') return;
-    if (submission.pdf_url) { setPdfUrl(submission.pdf_url); return; }
-    if (!submission.id) return;
+    setPdfUrl(submissionPdfUrl || null);
+    setTimedOut(false);
+    if (!submissionId || submissionStatus === 'draft' || submissionPdfUrl) {
+      return undefined;
+    }
 
     let polls = 0;
-    const interval = setInterval(async () => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const checkPdf = async () => {
       polls += 1;
+      let resolved = false;
       try {
-        const res = await submissionsApi.getPdf(submission.id);
-        if (res.pdf_url) {
+        const res = await submissionsApi.getPdf(submissionId);
+        if (!cancelled && res.pdf_url) {
+          resolved = true;
           setPdfUrl(res.pdf_url);
-          setSubmission({ ...submission, pdf_url: res.pdf_url });
-          clearInterval(interval);
+          const currentSubmission = useTasStore.getState().submission;
+          if (currentSubmission?.id === submissionId) {
+            setSubmission({ ...currentSubmission, pdf_url: res.pdf_url });
+          }
+          if (interval) { clearInterval(interval); }
         }
       } catch { /* ignore */ }
-      if (polls >= MAX_POLLS) clearInterval(interval);
-    }, 2000);
+      if (!cancelled && polls >= MAX_POLLS && !resolved) {
+        setTimedOut(true);
+        if (interval) { clearInterval(interval); }
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [submission?.id, submission?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+    checkPdf();
+    interval = setInterval(checkPdf, 2000);
 
-  if (!submission || submission.status !== 'submitted') return null;
+    return () => {
+      cancelled = true;
+      if (interval) { clearInterval(interval); }
+    };
+  }, [
+    setSubmission,
+    submissionId,
+    submissionPdfUrl,
+    submissionStatus,
+  ]);
 
-  const handleDownload = async () => {
-    if (!pdfUrl) return;
-    try {
-      const res = await fetch(pdfUrl, { credentials: 'include' });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'submission.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(pdfUrl, '_blank');
-    }
-  };
+  if (!submission || submission.status === 'draft') { return null; }
+
+  const filename = `submission_v${submission.version_number}.pdf`;
+  let statusLabel = 'Generating PDF…';
+  if (pdfUrl) {
+    statusLabel = 'PDF ready';
+  } else if (timedOut) {
+    statusLabel = 'PDF is taking longer than expected';
+  }
 
   return (
-    <div style={{
-      marginTop: 16, padding: '14px 20px',
-      background: '#f0fdf4', border: '1px solid #bbf7d0',
-      borderRadius: 10, display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between', gap: 12,
-    }}>
-      <div>
-        <div style={{ fontWeight: 700, color: '#15803d', fontSize: 15 }}>
-          ✓ Assignment submitted!
-        </div>
-        {!pdfUrl && (
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-            Generating PDF…
-          </div>
-        )}
+    <div className={`tas-pdf-status-banner ${pdfUrl ? 'is-ready' : 'is-generating'}`}>
+      <div className="tas-pdf-status-copy" role="status">
+        <span className="tas-pdf-status-icon" aria-hidden="true">{pdfUrl ? '✓' : '…'}</span>
+        <span>
+          <strong>{statusLabel}</strong>
+          <small>{pdfUrl ? 'Generated from this submitted version' : 'This usually takes a moment.'}</small>
+        </span>
       </div>
       {pdfUrl && (
-        <button
-          type="button"
-          onClick={handleDownload}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', background: '#16a34a', color: '#fff',
-            border: 'none', borderRadius: 8, fontWeight: 600,
-            fontSize: 14, cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          ↓ Download PDF
-        </button>
+        <div className="tas-pdf-status-actions">
+          <a className="tas-pdf-button" href={pdfUrl} target="_blank" rel="noreferrer">View PDF</a>
+          <button
+            type="button"
+            className="tas-pdf-button tas-pdf-button--primary"
+            onClick={() => { downloadPdf(pdfUrl, filename); }}
+          >
+            ↓ Download PDF
+          </button>
+        </div>
       )}
     </div>
   );

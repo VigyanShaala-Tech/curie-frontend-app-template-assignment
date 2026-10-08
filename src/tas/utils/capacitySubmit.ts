@@ -8,10 +8,10 @@ export function capacitySubmitPlan(
   clampedData: Record<string, string>,
   capacityFull: Record<string, boolean>,
 ): {
-  abort: boolean;
-  nextFormData?: Record<string, string>;
-  nextCapacityFull?: Record<string, boolean>;
-} {
+    abort: boolean;
+    nextFormData?: Record<string, string>;
+    nextCapacityFull?: Record<string, boolean>;
+  } {
   const overflowing = Object.keys(capacityFull).length > 0;
   if (answers && overflowing) {
     return { abort: true };

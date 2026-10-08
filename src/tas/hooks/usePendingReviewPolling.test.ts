@@ -10,7 +10,7 @@ describe('usePendingReviewPolling', () => {
     jest.useRealTimers();
   });
 
-  it('does not poll on a cold terminal load', () => {
+  it('refreshes once but does not poll on a cold terminal load', async () => {
     const fetcher = jest.fn().mockResolvedValue({ status: 'failed' });
     const onResult = jest.fn();
     renderHook(() => usePendingReviewPolling({
@@ -19,10 +19,33 @@ describe('usePendingReviewPolling', () => {
       fetcher,
       onResult,
     }));
-    act(() => {
+    await act(async () => {
+      await Promise.resolve();
       jest.advanceTimersByTime(15_000);
+      await Promise.resolve();
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(onResult).toHaveBeenCalledWith({ status: 'failed' });
+  });
+
+  it('refetches a terminal submission on window focus', async () => {
+    const fetcher = jest.fn().mockResolvedValue({ status: 'approved' });
+    const onResult = jest.fn();
+    renderHook(() => usePendingReviewPolling({
+      enabled: true,
+      isPending: false,
+      fetcher,
+      onResult,
+    }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await Promise.resolve();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it('polls while pending, then stops after pending-to-ready', async () => {
@@ -56,7 +79,7 @@ describe('usePendingReviewPolling', () => {
       jest.advanceTimersByTime(15_000);
       await Promise.resolve();
     });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
   it('records live failure after pending-to-failed', async () => {

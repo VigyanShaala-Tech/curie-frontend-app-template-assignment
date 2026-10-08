@@ -74,8 +74,8 @@ const FEEDBACK_BORDER: Record<string, string> = {
 };
 
 function curieStatusBadgeVariant(label: string): string {
-  if (label === 'Failed') return 'danger';
-  if (label === 'Pending') return 'warning';
+  if (label === 'Failed') { return 'danger'; }
+  if (label === 'Pending') { return 'warning'; }
   return 'info';
 }
 
@@ -164,19 +164,19 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   // Prefill scores/comment/predefined selections when reopening a submitted review
   // (e.g. after withdraw). Runs once per submissionId load; does not wipe in-progress edits.
   useEffect(() => {
-    if (!submission) return;
-    if (submission.status !== 'submitted' && !overrideEditing) return;
-    if (hydratedSubmissionIdRef.current === submissionId) return;
+    if (!submission) { return; }
+    if (submission.status !== 'submitted' && !overrideEditing) { return; }
+    if (hydratedSubmissionIdRef.current === submissionId) { return; }
 
-    const feedback = submission.feedback;
-    if (!feedback) return;
+    const { feedback } = submission;
+    if (!feedback) { return; }
 
     const hasRubrics = Array.isArray(feedback.rubrics) && feedback.rubrics.length > 0;
     const hasComment = typeof feedback.comment === 'string' && feedback.comment.length > 0;
-    if (!hasRubrics && !hasComment) return;
+    if (!hasRubrics && !hasComment) { return; }
 
     // Wait for block rubrics before restoring predefined feedback selections.
-    if (hasComment && rubrics === undefined) return;
+    if (hasComment && rubrics === undefined) { return; }
 
     const nextScores: Record<string, string> = {};
     (feedback.rubrics ?? []).forEach((entry: RubricFeedbackEntry) => {
@@ -203,7 +203,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
       const nextSelected: Record<string, string[]> = {};
       rubricList.forEach((rubric) => {
         const options = normalizeFeedbacks(rubric.feedbacks);
-        if (options.length === 0) return;
+        if (options.length === 0) { return; }
         const body = parsed.sections[rubric.criterion] ?? '';
         const lines = body.split('\n').map((line) => line.trim()).filter(Boolean);
         nextSelected[rubric.criterion] = options.filter((opt) => lines.includes(opt));
@@ -348,9 +348,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     && submission.feedback
     && !curiePresentation.showReadyOutput,
   );
-  const feedbackCardTitle = showGradingForm || isSubmitted
-    ? 'Instructor Feedback'
-    : (curiePresentation.showReadyOutput ? 'CURIE review' : 'Previous Feedback');
+  let feedbackCardTitle = 'Previous Feedback';
+  if (showGradingForm || isSubmitted) {
+    feedbackCardTitle = 'Instructor Feedback';
+  } else if (curiePresentation.showReadyOutput) {
+    feedbackCardTitle = 'CURIE review';
+  }
 
   return (
     <div className="d-flex flex-column h-100">

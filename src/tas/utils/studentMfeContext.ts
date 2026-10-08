@@ -18,6 +18,7 @@ export function courseIdFromUsageKey(usageKey: string): string {
 }
 
 export function buildStudentMfeContext(usageKey: string): MfeContext {
+  // eslint-disable-next-line no-underscore-dangle
   const injected = (window as any).__TAS_CONTEXT__;
   const user = getAuthenticatedUser();
   const params = new URLSearchParams(window.location.search);

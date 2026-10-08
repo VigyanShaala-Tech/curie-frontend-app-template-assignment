@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const CurieReviewList: React.FC<Props> = ({ fields, feedback }) => {
-  if (!feedback.length) return null;
+  if (!feedback.length) { return null; }
 
   return (
     <div>

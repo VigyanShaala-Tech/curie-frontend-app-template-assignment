@@ -10,7 +10,9 @@ import { loadAssignedTemplate, loadOwnedSubmission } from '../services/ownedSubm
 import { StudentFeedbackPanel } from './StudentFeedbackPanel';
 import { CurieReviewScreen } from './CurieReviewScreen';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
-import type { LearnerCurieReview, Submission, SubmissionFeedback, SubmissionVersion, Template } from '../types';
+import type {
+  LearnerCurieReview, Submission, SubmissionFeedback, SubmissionVersion, Template,
+} from '../types';
 import { buildStudentMfeContext, decodeUsageKeyParam } from '../utils/studentMfeContext';
 
 function isNotFound(err: any): boolean {
@@ -33,11 +35,11 @@ function humanOwnsVersion(version: SubmissionVersion | undefined): boolean {
 }
 
 function historicalDisplayState(review: LearnerCurieReview | null): DisplayState {
-  if (!review) return 'legacy';
-  if (review.status === 'pending_evaluation') return 'pending';
-  if (review.status === 'failed') return 'live_failed';
-  if (review.verdict === 'accepted') return 'curie_accepted';
-  if (review.verdict === 'rejected') return 'curie_rejected';
+  if (!review) { return 'legacy'; }
+  if (review.status === 'pending_evaluation') { return 'pending'; }
+  if (review.status === 'failed') { return 'live_failed'; }
+  if (review.verdict === 'accepted') { return 'curie_accepted'; }
+  if (review.verdict === 'rejected') { return 'curie_rejected'; }
   return 'legacy';
 }
 
@@ -62,7 +64,7 @@ export const HistoricalReviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!usageKey) return;
+    if (!usageKey) { return; }
     setMfeContext(buildStudentMfeContext(usageKey));
   }, [usageKey, setMfeContext]);
 
@@ -77,7 +79,7 @@ export const HistoricalReviewPage: React.FC = () => {
     setHumanFeedback(null);
     Promise.all([loadOwnedSubmission(mfeContext), loadAssignedTemplate(mfeContext)])
       .then(async ([owned, assigned]) => {
-        if (cancelled) return;
+        if (cancelled) { return; }
         setSubmission(owned);
         setTemplate(assigned);
         if (!owned) {
@@ -90,32 +92,32 @@ export const HistoricalReviewPage: React.FC = () => {
         const human = humanFeedbackFromVersion(summary);
 
         if (humanOwnsVersion(summary) || !summary?.curie_review_status) {
-          if (!cancelled) setHumanFeedback(human);
+          if (!cancelled) { setHumanFeedback(human); }
           return;
         }
 
         try {
           const payload = await submissionsApi.getCurieReview(owned.id, versionNumber);
-          if (!cancelled) setReview(payload);
+          if (!cancelled) { setReview(payload); }
         } catch (err) {
           if (!isNotFound(err)) {
             throw err;
           }
-          if (!cancelled) setHumanFeedback(human);
+          if (!cancelled) { setHumanFeedback(human); }
         }
       })
       .catch(() => {
-        if (!cancelled) setError('Unable to load this attempt’s review.');
+        if (!cancelled) { setError('Unable to load this attempt’s review.'); }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoading(false); }
       });
     return () => {
       cancelled = true;
     };
   }, [mfeContext, usageKey, versionNumber]);
 
-  if (!usageKey) return null;
+  if (!usageKey) { return null; }
 
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
   const displayState = historicalDisplayState(review);

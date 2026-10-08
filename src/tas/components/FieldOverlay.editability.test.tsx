@@ -12,7 +12,9 @@ const field: FormField = {
   required: true,
 };
 
-const position: FieldPosition = { x: 0, y: 0, width: 20, height: 10 };
+const position: FieldPosition = {
+  x: 0, y: 0, width: 20, height: 10,
+};
 
 const submitted: Submission = {
   id: '1',

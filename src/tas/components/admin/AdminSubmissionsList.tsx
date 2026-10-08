@@ -50,6 +50,57 @@ const LINK_ACTION_STYLE: React.CSSProperties = {
   textDecoration: 'underline',
 };
 
+const thStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  textAlign: 'left',
+  fontSize: '0.8rem',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color: '#6b7280',
+  whiteSpace: 'nowrap',
+};
+
+const sortableThButtonStyle: React.CSSProperties = {
+  padding: 0,
+  margin: 0,
+  border: 'none',
+  background: 'transparent',
+  color: 'inherit',
+  font: 'inherit',
+  fontWeight: 'inherit',
+  letterSpacing: 'inherit',
+  textTransform: 'inherit',
+  cursor: 'pointer',
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '14px 16px',
+  verticalAlign: 'middle',
+};
+
+const statusTabStyle: React.CSSProperties = {
+  gap: '0.5rem',
+  padding: '0.45rem 0.75rem',
+  fontSize: '0.875rem',
+  lineHeight: 1.2,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  flex: '0 0 auto',
+};
+
+const statusCountPillStyle: React.CSSProperties = {
+  minWidth: '1.35rem',
+  height: '1.35rem',
+  padding: '0 0.35rem',
+  borderRadius: '999px',
+  background: 'rgba(0, 0, 0, 0.22)',
+  color: '#fff',
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  lineHeight: 1,
+};
+
 const WITHDRAW_ERROR_FALLBACK = 'Failed to withdraw feedback. Please try again.';
 
 /** URL keys for submission list filters (do not touch course_id / student_id or sort_*). */
@@ -168,7 +219,7 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
   // Persist debounced email to the URL; reset to page 1 when email filter changes.
   useEffect(() => {
     const current = searchParams.get('email') ?? '';
-    if (debouncedEmail === current) return;
+    if (debouncedEmail === current) { return; }
     const next = new URLSearchParams(searchParams);
     if (debouncedEmail) {
       next.set('email', debouncedEmail);
@@ -216,8 +267,8 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
     }
     next.delete('page');
     // Persist defaults explicitly so refresh restores the active sort.
-    if (!next.get('sort_by')) next.set('sort_by', DEFAULT_SORT_BY);
-    if (!next.get('sort_dir')) next.set('sort_dir', DEFAULT_SORT_DIR);
+    if (!next.get('sort_by')) { next.set('sort_by', DEFAULT_SORT_BY); }
+    if (!next.get('sort_dir')) { next.set('sort_dir', DEFAULT_SORT_DIR); }
     setSearchParams(next, { replace: true });
   };
 
@@ -232,7 +283,7 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
   };
 
   const hasActiveFilters = FILTER_PARAM_KEYS.some((key) => {
-    if (key === 'email') return !!(emailInput || searchParams.get('email'));
+    if (key === 'email') { return !!(emailInput || searchParams.get('email')); }
     return !!searchParams.get(key);
   });
 
@@ -284,7 +335,7 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
   const partnerOptions = filterOptionsData?.partner_organization ?? [];
 
   const handleConfirmWithdraw = () => {
-    if (!withdrawTarget || isWithdrawing) return;
+    if (!withdrawTarget || isWithdrawing) { return; }
     withdrawMut.mutate(withdrawTarget.id);
   };
 
@@ -456,151 +507,151 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
             )}
 
             {totalCount > 0 && (
-          <div className="bg-white rounded shadow-sm" style={{ overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f5f7fa', borderBottom: '2px solid #dee2e6' }}>
-                  <th style={thStyle}>Student Email</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>CURIE</th>
-                  <th style={thStyle}>Source</th>
-                  <th style={thStyle}>
-                    <button
-                      type="button"
-                      onClick={() => handleSortHeaderClick('submitted_at')}
-                      style={sortableThButtonStyle}
-                      aria-label="Sort by Submitted At"
-                    >
-                      Submitted At
-                      {sortBy === 'submitted_at' && (
-                        <span aria-hidden="true">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th style={thStyle}>
-                    <button
-                      type="button"
-                      onClick={() => handleSortHeaderClick('resubmission_count')}
-                      style={sortableThButtonStyle}
-                      aria-label="Sort by Resubmission Count"
-                    >
-                      Resubmission Count
-                      {sortBy === 'resubmission_count' && (
-                        <span aria-hidden="true">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th style={{ ...thStyle, width: 260 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((sub: any, idx: number) => {
-                  const canWithdraw = canWithdrawQueueRow(sub);
-                  const rowWithdrawing = isWithdrawing && withdrawTarget?.id === String(sub.id);
-
-                  return (
-                    <tr
-                      key={sub.id}
-                      style={{
-                        borderBottom: '1px solid #dee2e6',
-                        background: idx % 2 === 0 ? '#fff' : '#fafafa',
-                      }}
-                    >
-                      <td style={tdStyle}>
-                        <span className="font-weight-bold">{sub.username}</span>
-                      </td>
-                      <td style={tdStyle}>
-                        <Badge variant={STATUS_BADGE[sub.status] ?? 'secondary'}>
-                          {formatSubmissionStatusLabel(sub.status)}
-                        </Badge>
-                      </td>
-                      <td style={tdStyle}>
-                        <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
-                        {sub.instructor_form_locked && (
-                          <div className="small text-muted">Locked</div>
-                        )}
-                      </td>
-                      <td style={tdStyle}>
-                        <span className="small">{queueSourceLabel(sub.feedback_source)}</span>
-                      </td>
-                      <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }}>
-                        {sub.submission_date
-                          ? new Date(sub.submission_date).toLocaleString()
-                          : '—'}
-                      </td>
-                      <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }}>
-                        {sub.resubmission_count ?? 0}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>
-                        <div className="d-flex justify-content-end" style={{ gap: '0.5rem' }}>
-                          {canWithdraw && (
-                            <Button
-                              variant="tertiary"
-                              size="sm"
-                              style={{ ...LINK_ACTION_STYLE, color: '#dc3545' }}
-                              disabled={isWithdrawing}
-                              onClick={() => setWithdrawTarget({
-                                id: String(sub.id),
-                                username: sub.username ?? 'this student',
-                              })}
-                            >
-                              {rowWithdrawing ? (
-                                <Spinner animation="border" size="sm" screenReaderText="Withdrawing" />
-                              ) : (
-                                'Withdraw Feedback'
-                              )}
-                            </Button>
+              <div className="bg-white rounded shadow-sm" style={{ overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f5f7fa', borderBottom: '2px solid #dee2e6' }}>
+                      <th style={thStyle}>Student Email</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>CURIE</th>
+                      <th style={thStyle}>Source</th>
+                      <th style={thStyle}>
+                        <button
+                          type="button"
+                          onClick={() => handleSortHeaderClick('submitted_at')}
+                          style={sortableThButtonStyle}
+                          aria-label="Sort by Submitted At"
+                        >
+                          Submitted At
+                          {sortBy === 'submitted_at' && (
+                          <span aria-hidden="true">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
                           )}
-                          {sub.status === 'submitted' ? (
-                            <Button
-                              variant="brand"
-                              size="sm"
-                              onClick={() => onView(String(sub.id))}
-                              disabled={isWithdrawing}
-                            >
-                              Review
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="tertiary"
-                              size="sm"
-                              style={LINK_ACTION_STYLE}
-                              onClick={() => onView(String(sub.id))}
-                              disabled={isWithdrawing}
-                            >
-                              View
-                            </Button>
+                        </button>
+                      </th>
+                      <th style={thStyle}>
+                        <button
+                          type="button"
+                          onClick={() => handleSortHeaderClick('resubmission_count')}
+                          style={sortableThButtonStyle}
+                          aria-label="Sort by Resubmission Count"
+                        >
+                          Resubmission Count
+                          {sortBy === 'resubmission_count' && (
+                          <span aria-hidden="true">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
                           )}
-                        </div>
-                      </td>
+                        </button>
+                      </th>
+                      <th style={{ ...thStyle, width: 260 }}>Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {submissions.map((sub: any, idx: number) => {
+                      const canWithdraw = canWithdrawQueueRow(sub);
+                      const rowWithdrawing = isWithdrawing && withdrawTarget?.id === String(sub.id);
 
-            {(hasPreviousPage || hasNextPage) && (
-              <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-                <Button
-                  variant="tertiary"
-                  size="sm"
-                  disabled={!hasPreviousPage}
-                  onClick={() => setPageParam(page - 1)}
-                >
-                  Previous
-                </Button>
-                <small className="text-muted">Page {page}</small>
-                <Button
-                  variant="tertiary"
-                  size="sm"
-                  disabled={!hasNextPage}
-                  onClick={() => setPageParam(page + 1)}
-                >
-                  Next
-                </Button>
+                      return (
+                        <tr
+                          key={sub.id}
+                          style={{
+                            borderBottom: '1px solid #dee2e6',
+                            background: idx % 2 === 0 ? '#fff' : '#fafafa',
+                          }}
+                        >
+                          <td style={tdStyle}>
+                            <span className="font-weight-bold">{sub.username}</span>
+                          </td>
+                          <td style={tdStyle}>
+                            <Badge variant={STATUS_BADGE[sub.status] ?? 'secondary'}>
+                              {formatSubmissionStatusLabel(sub.status)}
+                            </Badge>
+                          </td>
+                          <td style={tdStyle}>
+                            <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
+                            {sub.instructor_form_locked && (
+                            <div className="small text-muted">Locked</div>
+                            )}
+                          </td>
+                          <td style={tdStyle}>
+                            <span className="small">{queueSourceLabel(sub.feedback_source)}</span>
+                          </td>
+                          <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }}>
+                            {sub.submission_date
+                              ? new Date(sub.submission_date).toLocaleString()
+                              : '—'}
+                          </td>
+                          <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }}>
+                            {sub.resubmission_count ?? 0}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                            <div className="d-flex justify-content-end" style={{ gap: '0.5rem' }}>
+                              {canWithdraw && (
+                              <Button
+                                variant="tertiary"
+                                size="sm"
+                                style={{ ...LINK_ACTION_STYLE, color: '#dc3545' }}
+                                disabled={isWithdrawing}
+                                onClick={() => setWithdrawTarget({
+                                  id: String(sub.id),
+                                  username: sub.username ?? 'this student',
+                                })}
+                              >
+                                {rowWithdrawing ? (
+                                  <Spinner animation="border" size="sm" screenReaderText="Withdrawing" />
+                                ) : (
+                                  'Withdraw Feedback'
+                                )}
+                              </Button>
+                              )}
+                              {sub.status === 'submitted' ? (
+                                <Button
+                                  variant="brand"
+                                  size="sm"
+                                  onClick={() => onView(String(sub.id))}
+                                  disabled={isWithdrawing}
+                                >
+                                  Review
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="tertiary"
+                                  size="sm"
+                                  style={LINK_ACTION_STYLE}
+                                  onClick={() => onView(String(sub.id))}
+                                  disabled={isWithdrawing}
+                                >
+                                  View
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {(hasPreviousPage || hasNextPage) && (
+                  <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+                    <Button
+                      variant="tertiary"
+                      size="sm"
+                      disabled={!hasPreviousPage}
+                      onClick={() => setPageParam(page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <small className="text-muted">Page {page}</small>
+                    <Button
+                      variant="tertiary"
+                      size="sm"
+                      disabled={!hasNextPage}
+                      onClick={() => setPageParam(page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
             )}
           </>
         )}
@@ -616,7 +667,7 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
         title="Withdraw Feedback"
         isOpen={!!withdrawTarget}
         onClose={() => {
-          if (!isWithdrawing) setWithdrawTarget(null);
+          if (!isWithdrawing) { setWithdrawTarget(null); }
         }}
         size="md"
         hasCloseButton
@@ -655,55 +706,4 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
       </ModalDialog>
     </div>
   );
-};
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  textAlign: 'left',
-  fontSize: '0.8rem',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: '#6b7280',
-  whiteSpace: 'nowrap',
-};
-
-const sortableThButtonStyle: React.CSSProperties = {
-  padding: 0,
-  margin: 0,
-  border: 'none',
-  background: 'transparent',
-  color: 'inherit',
-  font: 'inherit',
-  fontWeight: 'inherit',
-  letterSpacing: 'inherit',
-  textTransform: 'inherit',
-  cursor: 'pointer',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '14px 16px',
-  verticalAlign: 'middle',
-};
-
-const statusTabStyle: React.CSSProperties = {
-  gap: '0.5rem',
-  padding: '0.45rem 0.75rem',
-  fontSize: '0.875rem',
-  lineHeight: 1.2,
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-  flex: '0 0 auto',
-};
-
-const statusCountPillStyle: React.CSSProperties = {
-  minWidth: '1.35rem',
-  height: '1.35rem',
-  padding: '0 0.35rem',
-  borderRadius: '999px',
-  background: 'rgba(0, 0, 0, 0.22)',
-  color: '#fff',
-  fontSize: '0.75rem',
-  fontWeight: 700,
-  lineHeight: 1,
 };

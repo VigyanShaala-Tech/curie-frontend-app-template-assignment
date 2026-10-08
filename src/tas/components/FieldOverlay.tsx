@@ -13,18 +13,13 @@ interface FieldOverlayProps {
   field: FormField;
   position: FieldPosition;
   isSelected: boolean;
-  imageWidth?: number;
-  imageHeight?: number;
-  offsetX?: number;
-  offsetY?: number;
   actualImageWidth: number;
   actualImageHeight: number;
   isReadOnly?: boolean;
   formDataOverride?: Record<string, string>;
 }
 
-const CAPACITY_WARNING =
-  'This field has reached its maximum capacity.';
+const CAPACITY_WARNING = 'This field has reached its maximum capacity.';
 
 export const FieldOverlay: React.FC<FieldOverlayProps> = ({
   field,
@@ -35,7 +30,9 @@ export const FieldOverlay: React.FC<FieldOverlayProps> = ({
   isReadOnly = false,
   formDataOverride,
 }) => {
-  const { openFieldEditor, formData, isMobile, fieldCapacityFull } = useTasStore();
+  const {
+    openFieldEditor, formData, isMobile, fieldCapacityFull,
+  } = useTasStore();
 
   const layout = resolveFieldLayout(field, position, actualImageWidth, actualImageHeight);
   const fieldValue = (formDataOverride ?? formData)[field.id] ?? '';
@@ -45,35 +42,49 @@ export const FieldOverlay: React.FC<FieldOverlayProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isInactive) openFieldEditor(field.id);
+    if (!isInactive) { openFieldEditor(field.id); }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isInactive && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      openFieldEditor(field.id);
+    }
   };
 
   const isEmptyPlaceholder = !isInactive && !isSelected && !hasValue;
 
-  const borderColor = isInactive
-    ? 'transparent'
-    : isSelected
-    ? '#3b82f6'
-    : hasValue
-    ? '#22c55e'
-    : '#d1d5db';
+  let borderColor = '#d1d5db';
+  if (isInactive) {
+    borderColor = 'transparent';
+  } else if (isSelected) {
+    borderColor = '#3b82f6';
+  } else if (hasValue) {
+    borderColor = '#22c55e';
+  }
 
   const borderWidth = isEmptyPlaceholder ? 1 : 2;
   const borderStyle = isEmptyPlaceholder ? 'dashed' : 'solid';
 
-  const bgColor = isInactive
-    ? 'transparent'
-    : isSelected
-    ? 'rgba(59,130,246,0.1)'
-    : hasValue
-    ? 'rgba(34,197,94,0.08)'
-    : 'rgba(255,255,255,0.15)';
+  let bgColor = 'rgba(255,255,255,0.15)';
+  if (isInactive) {
+    bgColor = 'transparent';
+  } else if (isSelected) {
+    bgColor = 'rgba(59,130,246,0.1)';
+  } else if (hasValue) {
+    bgColor = 'rgba(34,197,94,0.08)';
+  }
 
   const textStyles = fieldTextStyle(layout);
 
   return (
     <div
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={isInactive ? -1 : 0}
+      aria-disabled={isInactive}
+      aria-label={isInactive ? undefined : `Edit ${field.label}`}
       style={{
         position: 'absolute',
         left: `${position.x}%`,
