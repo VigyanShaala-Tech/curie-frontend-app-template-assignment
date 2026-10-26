@@ -22,6 +22,7 @@ describe('instructor CURIE presentation', () => {
     expect(pending.showFailedRecovery).toBe(false);
     expect(pending.showReadyOutput).toBe(false);
     expect(pending.canOverride).toBe(false);
+    expect(pending.canPublish).toBe(false);
 
     const unlocked = presentInstructorCurie({
       submissionStatus: 'submitted',
@@ -38,27 +39,31 @@ describe('instructor CURIE presentation', () => {
     expect(INSTRUCTOR_FAILED_RECOVERY_COPY).toMatch(/grade this attempt/);
   });
 
-  it('offers override only for finalized CURIE-owned ready reviews', () => {
+  it('offers publish or override for an unpublished ready review', () => {
     const submittedReady = presentInstructorCurie({
       submissionStatus: 'submitted',
-      feedbackSource: 'curie',
+      feedbackSource: null,
       curieReview: {
         status: 'ready',
-        instructor_form_locked: true,
+        awaiting_instructor_approval: true,
         overall_feedback: 'Looks good.',
       },
     });
     expect(submittedReady.formLocked).toBe(false);
     expect(submittedReady.showReadyOutput).toBe(true);
-    expect(submittedReady.canOverride).toBe(false);
-    expect(submittedReady.requireOverrideConfirm).toBe(false);
+    expect(submittedReady.canPublish).toBe(true);
+    expect(submittedReady.canOverride).toBe(true);
+    expect(submittedReady.requireOverrideConfirm).toBe(true);
+  });
 
+  it('offers override for finalized CURIE-owned ready reviews', () => {
     const accepted = presentInstructorCurie({
       submissionStatus: 'approved',
       feedbackSource: 'curie',
       curieReview: { status: 'ready', verdict: 'accepted' },
     });
     expect(accepted.canOverride).toBe(true);
+    expect(accepted.canPublish).toBe(false);
     expect(accepted.requireOverrideConfirm).toBe(true);
 
     const rejected = presentInstructorCurie({
@@ -107,6 +112,7 @@ describe('instructor CURIE presentation', () => {
     expect(queueCurieStatusLabel('pending_evaluation')).toBe('Pending');
     expect(queueCurieStatusLabel('ready')).toBe('Ready');
     expect(queueCurieStatusLabel('failed')).toBe('Failed');
+    expect(queueCurieStatusLabel('ready', true)).toBe('Awaiting approval');
     expect(queueCurieStatusLabel(null)).toBe('—');
     expect(queueSourceLabel('curie')).toBe('CURIE');
     expect(queueSourceLabel('human')).toBe('Human');

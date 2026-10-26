@@ -14,6 +14,10 @@ export const INSTRUCTOR_HUMAN_OWNS_COPY = 'This attempt is owned by instructor g
 
 export const INSTRUCTOR_OVERRIDE_ACTION = 'Override CURIE review';
 
+export const INSTRUCTOR_PUBLISH_ACTION = 'Publish CURIE review';
+
+export const INSTRUCTOR_AWAITING_APPROVAL_COPY = 'CURIE has completed this review. Publish it unchanged or override it with instructor feedback.';
+
 export const GATE_OVERALL_LABEL = 'Overall SWOT Coherence & Alignment';
 
 const FINALIZED_FEEDBACK = new Set(['approved', 'rejected']);
@@ -38,6 +42,7 @@ export interface StaffCurieReviewLike {
   gate_score?: number | null;
   gate_criterion_scores?: Array<{ criterion: string; score: number; max_score?: number }>;
   criterion_wise_scores?: Record<string, number>;
+  awaiting_instructor_approval?: boolean;
 }
 
 export interface InstructorCuriePresentation {
@@ -47,6 +52,7 @@ export interface InstructorCuriePresentation {
   showFailedRecovery: boolean;
   showReadyOutput: boolean;
   canOverride: boolean;
+  canPublish: boolean;
   requireOverrideConfirm: boolean;
   humanOwns: boolean;
   isSlowPending: boolean;
@@ -54,7 +60,9 @@ export interface InstructorCuriePresentation {
 
 export function queueCurieStatusLabel(
   status: CurieReviewStatus | string | null | undefined,
+  awaitingInstructorApproval = false,
 ): string {
+  if (awaitingInstructorApproval) { return 'Awaiting approval'; }
   if (status === 'pending_evaluation') { return 'Pending'; }
   if (status === 'ready') { return 'Ready'; }
   if (status === 'failed') { return 'Failed'; }
@@ -105,7 +113,9 @@ export function presentInstructorCurie(input: {
   const failed = status === 'failed';
   const ready = status === 'ready';
   const lockedFlag = review?.instructor_form_locked !== false;
-  const canOverride = ready && !humanOwns && finalized;
+  const awaitingApproval = Boolean(review?.awaiting_instructor_approval)
+    || (ready && submitted && !input.feedbackSource);
+  const canOverride = ready && !humanOwns && (finalized || awaitingApproval);
 
   return {
     reviewStatusLabel: status ? queueCurieStatusLabel(status) : null,
@@ -116,6 +126,7 @@ export function presentInstructorCurie(input: {
     showFailedRecovery: submitted && failed,
     showReadyOutput: ready && !humanOwns,
     canOverride,
+    canPublish: awaitingApproval && !humanOwns,
     requireOverrideConfirm: canOverride,
     humanOwns,
     isSlowPending: Boolean(review?.is_slow_pending && pending),

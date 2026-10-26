@@ -37,6 +37,7 @@ import { PredefinedFeedbackMultiSelect } from './PredefinedFeedbackMultiSelect';
 import {
   INSTRUCTOR_OVERRIDE_ACTION,
   INSTRUCTOR_OVERRIDE_CONFIRM,
+  INSTRUCTOR_PUBLISH_ACTION,
   presentInstructorCurie,
 } from '../../utils/instructorCurieUi';
 
@@ -233,6 +234,14 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     },
   });
 
+  const publishCurieMut = useMutation({
+    mutationFn: () => adminSubmissionsApi.publishCurieReview(submissionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-submission-detail', submissionId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-submissions', usageKey] });
+    },
+  });
+
   const isLoading = loadingSub || loadingRubrics;
 
   if (isLoading) {
@@ -349,10 +358,10 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     && !curiePresentation.showReadyOutput,
   );
   let feedbackCardTitle = 'Previous Feedback';
-  if (showGradingForm || isSubmitted) {
-    feedbackCardTitle = 'Instructor Feedback';
-  } else if (curiePresentation.showReadyOutput) {
+  if (curiePresentation.canPublish || curiePresentation.showReadyOutput) {
     feedbackCardTitle = 'CURIE review';
+  } else if (showGradingForm || isSubmitted) {
+    feedbackCardTitle = 'Instructor Feedback';
   }
 
   return (
@@ -416,6 +425,17 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   <p className="text-muted small mb-0" data-testid="instructor-form-locked">
                     Approve and Reject stay disabled until CURIE finishes or times out.
                   </p>
+                )}
+                {curiePresentation.canPublish && !overrideEditing && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mb-3 mr-2"
+                    disabled={publishCurieMut.isPending}
+                    onClick={() => publishCurieMut.mutate()}
+                  >
+                    {publishCurieMut.isPending ? 'Publishing…' : INSTRUCTOR_PUBLISH_ACTION}
+                  </Button>
                 )}
                 {curiePresentation.canOverride && !overrideEditing && !feedbackSaved && (
                   <Button

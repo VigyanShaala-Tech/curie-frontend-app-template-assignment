@@ -16,7 +16,7 @@ import { Button, ModalDialog, ActionRow } from '@openedx/paragon';
 
 import { TemplateSelector } from './TemplateSelector';
 import { TemplateCanvas } from './TemplateCanvas';
-import { FieldEditorPopup } from './FieldEditorPopup';
+import { AssignmentForm } from './AssignmentForm';
 import { PdfPoller } from './PdfPoller';
 import { StudentFeedbackPanel } from './StudentFeedbackPanel';
 import { StudentSubmissionDetail } from './StudentSubmissionDetail';
@@ -33,10 +33,17 @@ import { submissionsApi, formatApiError } from '../services/api';
 import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import { getActiveFields, isFieldEmpty } from '../utils/activeFields';
-import { resolveFieldLayout, FIELD_TEXT_FONT_FAMILY } from '../utils/fieldLayout';
+import {
+  resolveFieldLayout,
+  FIELD_TEXT_FONT_FAMILY,
+} from '../utils/fieldLayout';
 import { clampFormDataToFields } from '../utils/clampTextToField';
 import { capacitySubmitPlan } from '../utils/capacitySubmit';
-import type { FormField, LearnerCurieReview, SubmissionVersion } from '../types';
+import type {
+  FormField,
+  LearnerCurieReview,
+  SubmissionVersion,
+} from '../types';
 
 const SUBMIT_GREEN = '#69AB4A';
 
@@ -48,6 +55,7 @@ export const TasApp: React.FC = () => {
     submission,
     setSubmission,
     formData,
+    setFormValue,
     setFormData,
     clearFormData,
     clearSelection,
@@ -55,7 +63,6 @@ export const TasApp: React.FC = () => {
     setPreviewMode,
     setIsMobile,
     isMobile,
-    getSelectedField,
     isSaving,
     setIsSaving,
   } = useTasStore();
@@ -67,11 +74,15 @@ export const TasApp: React.FC = () => {
   const [selectedHistoryVersion, setSelectedHistoryVersion] = useState<SubmissionVersion | null>(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [requiredFieldsModalOpen, setRequiredFieldsModalOpen] = useState(false);
-  const [missingRequiredFields, setMissingRequiredFields] = useState<string[]>([]);
+  const [missingRequiredFields, setMissingRequiredFields] = useState<string[]>(
+    [],
+  );
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [optionalFieldsModalOpen, setOptionalFieldsModalOpen] = useState(false);
   const [confirmSubmitModalOpen, setConfirmSubmitModalOpen] = useState(false);
-  const [learnerReview, setLearnerReview] = useState<LearnerCurieReview | null>(null);
+  const [learnerReview, setLearnerReview] = useState<LearnerCurieReview | null>(
+    null,
+  );
   const pendingSubmitAnswers = useRef<Record<string, string> | null>(null);
 
   // ── Responsive detection ───────────────────────────────────────────────────
@@ -84,9 +95,15 @@ export const TasApp: React.FC = () => {
 
   // ── Create or retrieve draft when template is selected ────────────────────
   useEffect(() => {
-    if (!selectedTemplate || !selectedTemplateBlockId || !mfeContext) { return; }
-    if (submission) { return; }
-    if (draftCreating.current) { return; }
+    if (!selectedTemplate || !selectedTemplateBlockId || !mfeContext) {
+      return;
+    }
+    if (submission) {
+      return;
+    }
+    if (draftCreating.current) {
+      return;
+    }
 
     draftCreating.current = true;
 
@@ -107,7 +124,9 @@ export const TasApp: React.FC = () => {
         draftCreating.current = false;
         const responseData = err?.response?.data;
         let msg = 'Failed to start assignment. Please reload and try again.';
-        if (responseData?.detail) { msg = responseData.detail; } else if (responseData?.non_field_errors) {
+        if (responseData?.detail) {
+          msg = responseData.detail;
+        } else if (responseData?.non_field_errors) {
           msg = Array.isArray(responseData.non_field_errors)
             ? responseData.non_field_errors.join('\n')
             : responseData.non_field_errors;
@@ -117,12 +136,21 @@ export const TasApp: React.FC = () => {
           const fieldErrors = Object.entries(responseData)
             .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
             .join('\n');
-          if (fieldErrors) { msg = fieldErrors; }
+          if (fieldErrors) {
+            msg = fieldErrors;
+          }
         }
         alert(msg);
         clearSelection();
       });
-  }, [selectedTemplate, selectedTemplateBlockId, mfeContext, submission, setSubmission, clearSelection]);
+  }, [
+    selectedTemplate,
+    selectedTemplateBlockId,
+    mfeContext,
+    submission,
+    setSubmission,
+    clearSelection,
+  ]);
 
   // Reset draft-creating guard when selection is cleared
   useEffect(() => {
@@ -135,15 +163,15 @@ export const TasApp: React.FC = () => {
   const shouldPoll = Boolean(
     submission?.id
     && submission.status !== 'draft'
-    && (
-      submission.curie_review_status === 'pending_evaluation'
-      || (submission.curie_review_status == null && !submission.feedback)
-    ),
+    && (submission.curie_review_status === 'pending_evaluation'
+      || (submission.curie_review_status == null && !submission.feedback)),
   );
   const { observedPending } = usePendingReviewPolling({
     enabled: Boolean(submission?.id && submission.status !== 'draft'),
     isPending: shouldPoll,
-    identity: submission ? `${submission.id}:${submission.version_number}` : null,
+    identity: submission
+      ? `${submission.id}:${submission.version_number}`
+      : null,
     fetcher: () => submissionsApi.get(submission!.id),
     onResult: setSubmission,
   });
@@ -160,12 +188,10 @@ export const TasApp: React.FC = () => {
 
   const showCurieReviewScreen = Boolean(
     selectedTemplate
-    && (
-      lifecycle.displayState === 'pending'
+    && (lifecycle.displayState === 'pending'
       || lifecycle.displayState === 'live_failed'
       || lifecycle.displayState === 'curie_accepted'
-      || lifecycle.displayState === 'curie_rejected'
-    ),
+      || lifecycle.displayState === 'curie_rejected'),
   );
 
   useEffect(() => {
@@ -173,18 +199,26 @@ export const TasApp: React.FC = () => {
       setLearnerReview(null);
       return undefined;
     }
-    if (lifecycle.displayState !== 'curie_accepted' && lifecycle.displayState !== 'curie_rejected') {
+    if (
+      lifecycle.displayState !== 'curie_accepted'
+      && lifecycle.displayState !== 'curie_rejected'
+    ) {
       setLearnerReview(null);
       return undefined;
     }
 
     let cancelled = false;
-    submissionsApi.getCurieReview(submission.id)
+    submissionsApi
+      .getCurieReview(submission.id)
       .then((payload) => {
-        if (!cancelled) { setLearnerReview(payload); }
+        if (!cancelled) {
+          setLearnerReview(payload);
+        }
       })
       .catch(() => {
-        if (!cancelled) { setLearnerReview(null); }
+        if (!cancelled) {
+          setLearnerReview(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -203,15 +237,22 @@ export const TasApp: React.FC = () => {
     setVersionsLoading(true);
 
     const loadVersions = () => {
-      submissionsApi.getVersions(submission.id)
+      submissionsApi
+        .getVersions(submission.id)
         .then((res) => {
-          if (!cancelled) { setVersionHistory(res.versions); }
+          if (!cancelled) {
+            setVersionHistory(res.versions);
+          }
         })
         .catch(() => {
-          if (!cancelled) { setVersionHistory([]); }
+          if (!cancelled) {
+            setVersionHistory([]);
+          }
         })
         .finally(() => {
-          if (!cancelled) { setVersionsLoading(false); }
+          if (!cancelled) {
+            setVersionsLoading(false);
+          }
         });
     };
 
@@ -221,7 +262,12 @@ export const TasApp: React.FC = () => {
       cancelled = true;
       window.removeEventListener('focus', loadVersions);
     };
-  }, [submission?.id, submission?.status, submission?.feedback?.status, submission?.version_number]);
+  }, [
+    submission?.id,
+    submission?.status,
+    submission?.feedback?.status,
+    submission?.version_number,
+  ]);
 
   // ── Print / Save as PDF ───────────────────────────────────────────────────
   const handlePrint = useCallback(() => {
@@ -229,16 +275,21 @@ export const TasApp: React.FC = () => {
     // formData (committed values) is unchanged; only dismisses the popup UI.
     useTasStore.getState().closeFieldEditor();
 
-    if (!selectedTemplate) { return; }
+    if (!selectedTemplate) {
+      return;
+    }
     const imageW = selectedTemplate.image_width || 794;
     const imageH = selectedTemplate.image_height || 1123;
 
-    const fieldsHtml = selectedTemplate.fields.map((field) => {
-      const pos = selectedTemplate.field_positions[field.id];
-      const value = formData[field.id] ?? '';
-      if (!pos || !value) { return ''; }
-      const layout = resolveFieldLayout(field, pos, imageW, imageH);
-      return `
+    const fieldsHtml = selectedTemplate.fields
+      .map((field) => {
+        const pos = selectedTemplate.field_positions[field.id];
+        const value = formData[field.id] ?? '';
+        if (!pos || !value) {
+          return '';
+        }
+        const layout = resolveFieldLayout(field, pos, imageW, imageH);
+        return `
         <div style="
           position:absolute;
           left:${pos.x}%;top:${pos.y}%;
@@ -250,7 +301,8 @@ export const TasApp: React.FC = () => {
           line-height:1.3;white-space:pre-wrap;
           overflow-wrap:anywhere;word-break:break-word;
         ">${value.replace(/</g, '&lt;')}</div>`;
-    }).join('');
+      })
+      .join('');
 
     const html = `<!DOCTYPE html><html><head>
       <title>${selectedTemplate.name}</title>
@@ -270,7 +322,9 @@ export const TasApp: React.FC = () => {
     const triggerPrint = (doc: Document, win: Window) => {
       let printed = false;
       const runPrint = () => {
-        if (printed) { return; }
+        if (printed) {
+          return;
+        }
         printed = true;
         try {
           win.focus();
@@ -312,7 +366,9 @@ export const TasApp: React.FC = () => {
 
     // Mobile / popup-blocked: same-tab hidden iframe (reuse same HTML generation).
     const existing = document.getElementById('tas-print-iframe');
-    if (existing) { existing.remove(); }
+    if (existing) {
+      existing.remove();
+    }
 
     const iframe = document.createElement('iframe');
     iframe.id = 'tas-print-iframe';
@@ -339,121 +395,166 @@ export const TasApp: React.FC = () => {
   }, [selectedTemplate, formData, isMobile]);
 
   // ── Submit handler ─────────────────────────────────────────────────────────
-  const clampFormDataForSubmit = useCallback((data: Record<string, string>) => {
-    if (!selectedTemplate) {
-      return { formData: data, capacityFull: {} as Record<string, boolean> };
-    }
-    const imageW = selectedTemplate.image_width || 794;
-    const imageH = selectedTemplate.image_height || 1123;
-    const layoutsByFieldId: Record<string, ReturnType<typeof resolveFieldLayout>> = {};
+  const clampFormDataForSubmit = useCallback(
+    (data: Record<string, string>) => {
+      if (!selectedTemplate) {
+        return { formData: data, capacityFull: {} as Record<string, boolean> };
+      }
+      const imageW = selectedTemplate.image_width || 794;
+      const imageH = selectedTemplate.image_height || 1123;
+      const layoutsByFieldId: Record<
+      string,
+      ReturnType<typeof resolveFieldLayout>
+      > = {};
 
-    getActiveFields(selectedTemplate).forEach((field: FormField) => {
-      if (field.type === 'select' || field.type === 'date' || field.type === 'number'
-        || field.type === 'checkbox' || field.type === 'radio') {
-        return;
-      }
-      const pos = selectedTemplate.field_positions[field.id];
-      if (!pos) { return; }
-      layoutsByFieldId[field.id] = resolveFieldLayout(field, pos, imageW, imageH);
-    });
-
-    return clampFormDataToFields(data, layoutsByFieldId);
-  }, [selectedTemplate]);
-
-  const submitAssignment = useCallback(async (answers?: Record<string, string>) => {
-    if (!submission || !(lifecycle.canSubmit || lifecycle.canReattempt)) { return; }
-    const sourceData = answers ?? formData;
-
-    try {
-      setIsSaving(true);
-      // Defensive clamp so stale/legacy values cannot overflow the PDF boxes.
-      const { formData: clampedData, capacityFull } = clampFormDataForSubmit(sourceData);
-      const capacityPlan = capacitySubmitPlan(answers, clampedData, capacityFull);
-      if (capacityPlan.abort) {
-        alert('Some answers exceed the field capacity. Shorten them before submitting.');
-        return;
-      }
-      if (capacityPlan.nextFormData) {
-        setFormData(capacityPlan.nextFormData);
-      }
-      if (capacityPlan.nextCapacityFull) {
-        useTasStore.getState().setFieldCapacityFullMap({
-          ...useTasStore.getState().fieldCapacityFull,
-          ...capacityPlan.nextCapacityFull,
-        });
-      }
-      if (submission.status === 'draft') {
-        await submissionsApi.patch(submission.id, clampedData);
-      }
-      const submitted = await submissionsApi.submit(submission.id, clampedData);
-      setSubmission(submitted);
-    } catch (err: any) {
-      const responseData = err?.response?.data;
-      let errorMsg = 'Submission failed. Please try again.';
-      if (responseData) {
-        if (typeof responseData === 'string') {
-          errorMsg = responseData;
-        } else if (responseData.detail) {
-          errorMsg = responseData.detail;
-        } else if (responseData.non_field_errors) {
-          errorMsg = Array.isArray(responseData.non_field_errors)
-            ? responseData.non_field_errors.join('\n')
-            : responseData.non_field_errors;
-        } else {
-          const fieldErrors = Object.entries(responseData)
-            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-            .join('\n');
-          if (fieldErrors) { errorMsg = fieldErrors; }
+      getActiveFields(selectedTemplate).forEach((field: FormField) => {
+        if (
+          field.type === 'select'
+          || field.type === 'date'
+          || field.type === 'number'
+          || field.type === 'checkbox'
+          || field.type === 'radio'
+        ) {
+          return;
         }
+        const pos = selectedTemplate.field_positions[field.id];
+        if (!pos) {
+          return;
+        }
+        layoutsByFieldId[field.id] = resolveFieldLayout(
+          field,
+          pos,
+          imageW,
+          imageH,
+        );
+      });
+
+      return clampFormDataToFields(data, layoutsByFieldId);
+    },
+    [selectedTemplate],
+  );
+
+  const submitAssignment = useCallback(
+    async (answers?: Record<string, string>) => {
+      if (!submission || !(lifecycle.canSubmit || lifecycle.canReattempt)) {
+        return;
       }
-      alert(errorMsg);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    submission,
-    formData,
-    setIsSaving,
-    setSubmission,
-    setFormData,
-    clampFormDataForSubmit,
-    lifecycle.canSubmit,
-    lifecycle.canReattempt,
-  ]);
+      const sourceData = answers ?? formData;
 
-  const handleSubmit = useCallback((answers?: Record<string, string>) => {
-    // Close editor first so Submit is reachable while the popup is open.
-    // formData (committed values) is unchanged; only dismisses the popup UI.
-    useTasStore.getState().closeFieldEditor();
+      try {
+        setIsSaving(true);
+        // Defensive clamp so stale/legacy values cannot overflow the PDF boxes.
+        const { formData: clampedData, capacityFull } = clampFormDataForSubmit(sourceData);
+        const capacityPlan = capacitySubmitPlan(
+          answers,
+          clampedData,
+          capacityFull,
+        );
+        if (capacityPlan.abort) {
+          alert(
+            'Some answers exceed the field capacity. Shorten them before submitting.',
+          );
+          return;
+        }
+        if (capacityPlan.nextFormData) {
+          setFormData(capacityPlan.nextFormData);
+        }
+        if (capacityPlan.nextCapacityFull) {
+          useTasStore.getState().setFieldCapacityFullMap({
+            ...useTasStore.getState().fieldCapacityFull,
+            ...capacityPlan.nextCapacityFull,
+          });
+        }
+        if (submission.status === 'draft') {
+          await submissionsApi.patch(submission.id, clampedData);
+        }
+        const submitted = await submissionsApi.submit(
+          submission.id,
+          clampedData,
+        );
+        setSubmission(submitted);
+      } catch (err: any) {
+        const responseData = err?.response?.data;
+        let errorMsg = 'Submission failed. Please try again.';
+        if (responseData) {
+          if (typeof responseData === 'string') {
+            errorMsg = responseData;
+          } else if (responseData.detail) {
+            errorMsg = responseData.detail;
+          } else if (responseData.non_field_errors) {
+            errorMsg = Array.isArray(responseData.non_field_errors)
+              ? responseData.non_field_errors.join('\n')
+              : responseData.non_field_errors;
+          } else {
+            const fieldErrors = Object.entries(responseData)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+              .join('\n');
+            if (fieldErrors) {
+              errorMsg = fieldErrors;
+            }
+          }
+        }
+        alert(errorMsg);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [
+      submission,
+      formData,
+      setIsSaving,
+      setSubmission,
+      setFormData,
+      clampFormDataForSubmit,
+      lifecycle.canSubmit,
+      lifecycle.canReattempt,
+    ],
+  );
 
-    const sourceData = answers ?? formData;
-    const canGo = lifecycle.canSubmit || lifecycle.canReattempt;
-    if (!submission || !canGo) { return; }
+  const handleSubmit = useCallback(
+    (answers?: Record<string, string>) => {
+      // Close editor first so Submit is reachable while the popup is open.
+      // formData (committed values) is unchanged; only dismisses the popup UI.
+      useTasStore.getState().closeFieldEditor();
 
-    const activeFields = getActiveFields(selectedTemplate);
+      const sourceData = answers ?? formData;
+      const canGo = lifecycle.canSubmit || lifecycle.canReattempt;
+      if (!submission || !canGo) {
+        return;
+      }
 
-    const missing = activeFields
-      .filter((f) => f.required && isFieldEmpty(sourceData, f.id))
-      .map((f) => f.label);
+      const activeFields = getActiveFields(selectedTemplate);
 
-    if (missing.length > 0) {
-      setMissingRequiredFields(missing);
-      setRequiredFieldsModalOpen(true);
-      return;
-    }
+      const missing = activeFields
+        .filter((f) => f.required && isFieldEmpty(sourceData, f.id))
+        .map((f) => f.label);
 
-    const hasEmptyOptional = activeFields.some(
-      (f) => !f.required && isFieldEmpty(sourceData, f.id),
-    );
-    if (hasEmptyOptional) {
+      if (missing.length > 0) {
+        setMissingRequiredFields(missing);
+        setRequiredFieldsModalOpen(true);
+        return;
+      }
+
+      const hasEmptyOptional = activeFields.some(
+        (f) => !f.required && isFieldEmpty(sourceData, f.id),
+      );
+      if (hasEmptyOptional) {
+        pendingSubmitAnswers.current = sourceData;
+        setOptionalFieldsModalOpen(true);
+        return;
+      }
+
       pendingSubmitAnswers.current = sourceData;
-      setOptionalFieldsModalOpen(true);
-      return;
-    }
-
-    pendingSubmitAnswers.current = sourceData;
-    setConfirmSubmitModalOpen(true);
-  }, [submission, selectedTemplate, formData, lifecycle.canSubmit, lifecycle.canReattempt]);
+      setConfirmSubmitModalOpen(true);
+    },
+    [
+      submission,
+      selectedTemplate,
+      formData,
+      lifecycle.canSubmit,
+      lifecycle.canReattempt,
+    ],
+  );
 
   const handleOptionalContinueHere = useCallback(() => {
     setOptionalFieldsModalOpen(false);
@@ -475,7 +576,9 @@ export const TasApp: React.FC = () => {
 
   // ── Edit Assignment (rejected → draft reopen) ──────────────────────────────
   const handleEditAssignment = useCallback(async () => {
-    if (!submission || submission.status !== 'rejected') { return; }
+    if (!submission || submission.status !== 'rejected') {
+      return;
+    }
     try {
       setIsSaving(true);
       // Preserve intentional Clear All: if local form is empty, do not reload server answers
@@ -521,7 +624,9 @@ export const TasApp: React.FC = () => {
   });
 
   const handleSaveDraftAndGoBack = useCallback(async () => {
-    if (!submission || submission.status !== 'draft') { return; }
+    if (!submission || submission.status !== 'draft') {
+      return;
+    }
     try {
       setIsSaving(true);
       const updated = await submissionsApi.patch(submission.id, formData);
@@ -557,13 +662,17 @@ export const TasApp: React.FC = () => {
     );
   }
 
-  const readyReview = learnerReview ?? (
-    submission?.feedback
-    && (lifecycle.displayState === 'curie_accepted' || lifecycle.displayState === 'curie_rejected')
+  const readyReview = learnerReview
+    ?? (submission?.feedback
+    && (lifecycle.displayState === 'curie_accepted'
+      || lifecycle.displayState === 'curie_rejected')
       ? {
         status: 'ready' as const,
-        verdict: submission.feedback.verdict
-          ?? (lifecycle.displayState === 'curie_accepted' ? 'accepted' as const : 'rejected' as const),
+        verdict:
+            submission.feedback.verdict
+            ?? (lifecycle.displayState === 'curie_accepted'
+              ? ('accepted' as const)
+              : ('rejected' as const)),
         overall_feedback: submission.feedback.comment,
         field_feedback: submission.feedback.field_feedback ?? [],
         star_rating: null,
@@ -573,15 +682,16 @@ export const TasApp: React.FC = () => {
         requested_at: null,
         completed_at: null,
       }
-      : null
-  );
+      : null);
 
-  if (showCurieReviewScreen && submission && (
-    lifecycle.displayState === 'pending'
-    || lifecycle.displayState === 'live_failed'
-    || lifecycle.displayState === 'curie_accepted'
-    || lifecycle.displayState === 'curie_rejected'
-  )) {
+  if (
+    showCurieReviewScreen
+    && submission
+    && (lifecycle.displayState === 'pending'
+      || lifecycle.displayState === 'live_failed'
+      || lifecycle.displayState === 'curie_accepted'
+      || lifecycle.displayState === 'curie_rejected')
+  ) {
     return (
       <>
         <CurieReviewScreen
@@ -595,6 +705,9 @@ export const TasApp: React.FC = () => {
           atMaxAttempts={lifecycle.atMaxAttempts}
           canReattempt={lifecycle.canReattempt}
           isSlowPending={lifecycle.isSlowPending}
+          awaitingInstructorApproval={Boolean(
+            submission.awaiting_instructor_approval,
+          )}
           isSaving={isSaving}
           isMobile={isMobile}
           submission={submission}
@@ -639,8 +752,6 @@ export const TasApp: React.FC = () => {
   }
 
   // ─── Render: template selected → canvas ───────────────────────────────────
-  const selectedField = getSelectedField();
-
   const btnBase: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -687,7 +798,7 @@ export const TasApp: React.FC = () => {
           }}
         >
           {/* Back */}
-          {!isLocked && (
+          {!isLocked && isMobile && (
             <button
               type="button"
               onClick={() => {
@@ -791,7 +902,7 @@ export const TasApp: React.FC = () => {
                 ...btnBase,
                 background: SUBMIT_GREEN,
                 color: '#fff',
-                opacity: (isSaving || !submission) ? 0.5 : 1,
+                opacity: isSaving || !submission ? 0.5 : 1,
               }}
             >
               Submit
@@ -799,17 +910,18 @@ export const TasApp: React.FC = () => {
           )}
 
           {isLocked && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#dcfce7',
-              color: '#15803d',
-              borderRadius: 8,
-              padding: '6px 14px',
-              fontWeight: 600,
-              fontSize: 13,
-            }}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: '#dcfce7',
+                color: '#15803d',
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontWeight: 600,
+                fontSize: 13,
+              }}
             >
               ✓ Submitted
             </span>
@@ -827,26 +939,53 @@ export const TasApp: React.FC = () => {
           padding: '24px',
         }}
       >
-        {/* Inner container — white card that holds the canvas */}
-        <div
-          className="tas-submission-card"
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-            padding: 16,
-            maxWidth: 900,
-            margin: '0 auto',
-          }}
-        >
-          <TemplateCanvas template={selectedTemplate} readOnly={isLocked || isPreviewMode} />
-        </div>
-
-        {isLocked && submission?.feedback
-          && (submission.feedback.status === 'approved' || submission.feedback.status === 'rejected') && (
-          <div style={{ maxWidth: 900, margin: '16px auto 0' }}>
-            <StudentFeedbackPanel feedback={submission.feedback} />
+        {!isLocked ? (
+          <div className="assignment-workspace">
+            {(!isMobile || !isPreviewMode) && (
+              <div className="assignment-workspace__form">
+                <AssignmentForm
+                  template={selectedTemplate}
+                  values={formData}
+                  onChange={setFormValue}
+                  isMobile={isMobile}
+                />
+              </div>
+            )}
+            {(!isMobile || isPreviewMode) && (
+              <aside className="assignment-workspace__preview" aria-label="Live template preview">
+                <h3>Live preview</h3>
+                <TemplateCanvas
+                  template={selectedTemplate}
+                  readOnly
+                  fitToPane
+                  formDataOverride={formData}
+                />
+              </aside>
+            )}
           </div>
+        ) : (
+          <div
+            className="tas-submission-card"
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+              padding: 16,
+              maxWidth: 900,
+              margin: '0 auto',
+            }}
+          >
+            <TemplateCanvas template={selectedTemplate} readOnly />
+          </div>
+        )}
+
+        {isLocked
+          && submission?.feedback
+          && (submission.feedback.status === 'approved'
+            || submission.feedback.status === 'rejected') && (
+            <div style={{ maxWidth: 900, margin: '16px auto 0' }}>
+              <StudentFeedbackPanel feedback={submission.feedback} />
+            </div>
         )}
 
         {isLocked && (
@@ -877,14 +1016,15 @@ export const TasApp: React.FC = () => {
         )}
       </div>
 
-      {/* Field editor popup */}
-      {!isLocked && <FieldEditorPopup field={selectedField} fields={selectedTemplate.fields} />}
-
       {/* PDF / submission status banner */}
       {isLocked && (
-        <div style={{
-          flexShrink: 0, padding: '0 16px 16px', background: '#fff', borderTop: '1px solid #e5e7eb',
-        }}
+        <div
+          style={{
+            flexShrink: 0,
+            padding: '0 16px 16px',
+            background: '#fff',
+            borderTop: '1px solid #e5e7eb',
+          }}
         >
           <PdfPoller />
         </div>
@@ -903,8 +1043,9 @@ export const TasApp: React.FC = () => {
         </ModalDialog.Header>
         <ModalDialog.Body>
           <p className="mb-0">
-            This will remove all responses currently shown in the assignment form.
-            The changes won&apos;t be saved until you save the draft or submit the assignment again.
+            This will remove all responses currently shown in the assignment
+            form. The changes won&apos;t be saved until you save the draft or
+            submit the assignment again.
           </p>
         </ModalDialog.Body>
         <ModalDialog.Footer>

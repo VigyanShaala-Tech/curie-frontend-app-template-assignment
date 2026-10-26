@@ -98,6 +98,18 @@ export function deriveLifecycle(input: LifecycleInput): LifecycleCapabilities {
   const instructorFormLocked = pending;
   const isSlowPending = pending && Boolean(input.isSlowPending);
 
+  if (humanOwns && status === 'draft') {
+    return emptyLifecycle({
+      displayState: 'draft',
+      hasCurieReview: true,
+      canEdit: true,
+      canSubmit: true,
+      isCanvasReadOnly: false,
+      instructorFormLocked: false,
+      atMaxAttempts: atMax,
+    });
+  }
+
   if (humanOwns) {
     const rejected = status === 'rejected';
     const canLegacyReopen = rejected && !atMax;

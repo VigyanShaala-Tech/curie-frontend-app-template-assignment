@@ -58,7 +58,9 @@ export function formatApiError(err: any, fallback: string): string {
       : String(data.non_field_errors);
   }
   const fieldErrors = Object.entries(data)
-    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+    .map(
+      ([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`,
+    )
     .join('\n');
   return fieldErrors || fallback;
 }
@@ -117,7 +119,9 @@ function mapSubmission(raw: any): Submission {
     submitted_at: raw.submitted_at ?? null,
     pdf_url: raw.pdf_url ?? '',
     feedback: raw.feedback ?? null,
-    curie_review_status: (raw.curie_review_status ?? null) as CurieReviewStatus | null,
+    curie_review_status: (raw.curie_review_status
+      ?? null) as CurieReviewStatus | null,
+    awaiting_instructor_approval: Boolean(raw.awaiting_instructor_approval),
     is_slow_pending: Boolean(raw.is_slow_pending),
     submission_attempt_count: raw.submission_attempt_count ?? 0,
     at_max_attempts: Boolean(raw.at_max_attempts),
@@ -129,6 +133,7 @@ function mapSubmission(raw: any): Submission {
 function mapLearnerCurieReview(raw: any): LearnerCurieReview {
   return {
     status: raw.status,
+    awaiting_instructor_approval: Boolean(raw.awaiting_instructor_approval),
     verdict: raw.verdict ?? null,
     overall_feedback: raw.overall_feedback ?? '',
     field_feedback: raw.field_feedback ?? [],
@@ -161,8 +166,14 @@ export const templateTypesApi = {
     return mapTemplateType(data);
   },
 
-  update: async (id: string, body: Partial<Omit<TemplateType, 'id'>>): Promise<TemplateType> => {
-    const { data } = await http().patch(`${tasBase()}/template-types/${id}/`, body);
+  update: async (
+    id: string,
+    body: Partial<Omit<TemplateType, 'id'>>,
+  ): Promise<TemplateType> => {
+    const { data } = await http().patch(
+      `${tasBase()}/template-types/${id}/`,
+      body,
+    );
     return mapTemplateType(data);
   },
 
@@ -181,9 +192,15 @@ export const templatesApi = {
     active_only?: boolean;
   }): Promise<{ count: number; results: Template[] }> => {
     const query: Record<string, any> = { page_size: 24 };
-    if (params?.template_type) { query.template_type = params.template_type; }
-    if (params?.is_public !== undefined) { query.is_public = params.is_public; }
-    const { data } = await http().get(`${tasBase()}/templates/`, { params: query });
+    if (params?.template_type) {
+      query.template_type = params.template_type;
+    }
+    if (params?.is_public !== undefined) {
+      query.is_public = params.is_public;
+    }
+    const { data } = await http().get(`${tasBase()}/templates/`, {
+      params: query,
+    });
     const raw: any[] = Array.isArray(data) ? data : (data.results ?? []);
     let results: Template[] = raw.map(mapTemplate);
     if (params?.active_only !== false) {
@@ -192,7 +209,8 @@ export const templatesApi = {
     if (params?.search) {
       const q = params.search.toLowerCase();
       results = results.filter(
-        (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+        (t) => t.name.toLowerCase().includes(q)
+          || t.description.toLowerCase().includes(q),
       );
     }
     return { count: results.length, results };
@@ -218,24 +236,48 @@ export const adminTemplatesApi = {
     fd.append('field_positions', JSON.stringify(body.field_positions));
     fd.append('is_public', String(body.is_public));
     fd.append('is_active', 'true');
-    if (body.imageFile) { fd.append('image', body.imageFile); }
-    if (body.thumbnailFile) { fd.append('thumbnail', body.thumbnailFile); }
+    if (body.imageFile) {
+      fd.append('image', body.imageFile);
+    }
+    if (body.thumbnailFile) {
+      fd.append('thumbnail', body.thumbnailFile);
+    }
     const { data } = await http().post(`${tasBase()}/templates/`, fd);
     return mapTemplate(data);
   },
 
   update: async (id: string, body: TemplateUpdateBody): Promise<Template> => {
     const fd = new FormData();
-    if (body.template_type_id !== undefined) { fd.append('template_type', String(Number(body.template_type_id))); }
-    if (body.name !== undefined) { fd.append('name', body.name); }
-    if (body.description !== undefined) { fd.append('description', body.description); }
-    if (body.image_width !== undefined) { fd.append('image_width', String(body.image_width)); }
-    if (body.image_height !== undefined) { fd.append('image_height', String(body.image_height)); }
-    if (body.fields !== undefined) { fd.append('fields', JSON.stringify(body.fields)); }
-    if (body.field_positions !== undefined) { fd.append('field_positions', JSON.stringify(body.field_positions)); }
-    if (body.is_public !== undefined) { fd.append('is_public', String(body.is_public)); }
-    if (body.imageFile) { fd.append('image', body.imageFile); }
-    if (body.thumbnailFile) { fd.append('thumbnail', body.thumbnailFile); }
+    if (body.template_type_id !== undefined) {
+      fd.append('template_type', String(Number(body.template_type_id)));
+    }
+    if (body.name !== undefined) {
+      fd.append('name', body.name);
+    }
+    if (body.description !== undefined) {
+      fd.append('description', body.description);
+    }
+    if (body.image_width !== undefined) {
+      fd.append('image_width', String(body.image_width));
+    }
+    if (body.image_height !== undefined) {
+      fd.append('image_height', String(body.image_height));
+    }
+    if (body.fields !== undefined) {
+      fd.append('fields', JSON.stringify(body.fields));
+    }
+    if (body.field_positions !== undefined) {
+      fd.append('field_positions', JSON.stringify(body.field_positions));
+    }
+    if (body.is_public !== undefined) {
+      fd.append('is_public', String(body.is_public));
+    }
+    if (body.imageFile) {
+      fd.append('image', body.imageFile);
+    }
+    if (body.thumbnailFile) {
+      fd.append('thumbnail', body.thumbnailFile);
+    }
     const { data } = await http().patch(`${tasBase()}/templates/${id}/`, fd);
     return mapTemplate(data);
   },
@@ -244,7 +286,10 @@ export const adminTemplatesApi = {
     await http().delete(`${tasBase()}/templates/${id}/`);
   },
 
-  toggleActive: async (id: string, currentlyActive: boolean): Promise<Template> => {
+  toggleActive: async (
+    id: string,
+    currentlyActive: boolean,
+  ): Promise<Template> => {
     const { data } = await http().patch(`${tasBase()}/templates/${id}/`, {
       is_active: !currentlyActive,
     });
@@ -256,7 +301,9 @@ export const adminTemplatesApi = {
 
 export const blockTemplatesApi = {
   list: async (usageKey: string): Promise<BlockTemplatesResponse> => {
-    const { data } = await http().get(`${tasBase()}/blocks/${encodeURIComponent(usageKey)}/templates/`);
+    const { data } = await http().get(
+      `${tasBase()}/blocks/${encodeURIComponent(usageKey)}/templates/`,
+    );
     // Backend returns a single TemplateBlock item — wrap in array for frontend shape
     const item = data.templates;
     return {
@@ -284,7 +331,10 @@ export const submissionsApi = {
       form_data: {},
       status: 'draft',
     };
-    const { data } = await http().post(`${tasBase()}/student-submission/`, payload);
+    const { data } = await http().post(
+      `${tasBase()}/student-submission/`,
+      payload,
+    );
     return mapSubmission(data);
   },
 
@@ -293,29 +343,48 @@ export const submissionsApi = {
     return mapSubmission(data);
   },
 
-  patch: async (id: string, form_data: Record<string, string>): Promise<Submission> => {
-    const { data } = await http().patch(`${tasBase()}/student-submission/${id}/`, { form_data });
+  patch: async (
+    id: string,
+    form_data: Record<string, string>,
+  ): Promise<Submission> => {
+    const { data } = await http().patch(
+      `${tasBase()}/student-submission/${id}/`,
+      { form_data },
+    );
     return mapSubmission(data);
   },
 
   /** Reopen a rejected submission to draft without rewriting form_data. */
   reopen: async (id: string): Promise<Submission> => {
-    const { data } = await http().patch(`${tasBase()}/student-submission/${id}/`, { action: 'reopen' });
+    const { data } = await http().patch(
+      `${tasBase()}/student-submission/${id}/`,
+      { action: 'reopen' },
+    );
     return mapSubmission(data);
   },
 
-  submit: async (id: string, form_data: Record<string, string>): Promise<Submission> => {
-    const { data } = await http().post(`${tasBase()}/student-submission/${id}/submit/`, { form_data });
+  submit: async (
+    id: string,
+    form_data: Record<string, string>,
+  ): Promise<Submission> => {
+    const { data } = await http().post(
+      `${tasBase()}/student-submission/${id}/submit/`,
+      { form_data },
+    );
     return mapSubmission(data);
   },
 
   getPdf: async (id: string): Promise<PdfStatusResponse> => {
-    const { data } = await http().get(`${tasBase()}/student-submission/${id}/pdf/`);
+    const { data } = await http().get(
+      `${tasBase()}/student-submission/${id}/pdf/`,
+    );
     return { pdf_url: data.pdf_url ?? null, status: data.status };
   },
 
   getVersions: async (id: string): Promise<SubmissionVersionsResponse> => {
-    const { data } = await http().get(`${tasBase()}/student-submission/${id}/versions/`);
+    const { data } = await http().get(
+      `${tasBase()}/student-submission/${id}/versions/`,
+    );
     const versions = (data.versions ?? []).map((v: any) => ({
       version_number: v.version_number,
       submitted_at: v.submitted_at ?? v.saved_at ?? null,
@@ -327,6 +396,7 @@ export const submissionsApi = {
       download_url: v.download_url ?? v.pdf_url ?? null,
       attempt_number: v.attempt_number ?? null,
       curie_review_status: v.curie_review_status ?? null,
+      awaiting_instructor_approval: Boolean(v.awaiting_instructor_approval),
       feedback_source: v.feedback_source ?? null,
       verdict: v.verdict ?? null,
       star_rating: v.star_rating ?? null,
@@ -339,10 +409,16 @@ export const submissionsApi = {
     };
   },
 
-  getCurieReview: async (id: string, version?: number): Promise<LearnerCurieReview> => {
-    const { data } = await http().get(`${tasBase()}/student-submission/${id}/curie-review/`, {
-      params: version != null ? { version } : undefined,
-    });
+  getCurieReview: async (
+    id: string,
+    version?: number,
+  ): Promise<LearnerCurieReview> => {
+    const { data } = await http().get(
+      `${tasBase()}/student-submission/${id}/curie-review/`,
+      {
+        params: version != null ? { version } : undefined,
+      },
+    );
     return mapLearnerCurieReview(data);
   },
 };
@@ -370,12 +446,18 @@ export const rubricsApi = {
     };
   },
 
-  create: async (body: { name: string; criteria: RubricCriterion[] }): Promise<Rubric> => {
+  create: async (body: {
+    name: string;
+    criteria: RubricCriterion[];
+  }): Promise<Rubric> => {
     const { data } = await http().post(`${tasBase()}/rubrics/`, body);
     return mapRubric(data);
   },
 
-  update: async (id: string, body: { name?: string; criteria?: RubricCriterion[] }): Promise<Rubric> => {
+  update: async (
+    id: string,
+    body: { name?: string; criteria?: RubricCriterion[] },
+  ): Promise<Rubric> => {
     const { data } = await http().patch(`${tasBase()}/rubrics/${id}/`, body);
     return mapRubric(data);
   },
@@ -402,6 +484,7 @@ export interface AdminSubmissionListRow {
   curie_review_status?: CurieReviewStatus | null;
   feedback_source?: string | null;
   instructor_form_locked?: boolean;
+  awaiting_instructor_approval?: boolean;
 }
 
 export interface AdminSubmissionListFilterOptions {
@@ -451,16 +534,21 @@ export const adminSubmissionsApi = {
         },
       },
     );
-    const results = (Array.isArray(data?.results) ? data.results : []).map((row: AdminSubmissionListRow) => ({
-      ...row,
-      instructor_form_locked: instructorLockFromQueueRow(row),
-    }));
+    const results = (Array.isArray(data?.results) ? data.results : []).map(
+      (row: AdminSubmissionListRow) => ({
+        ...row,
+        instructor_form_locked: instructorLockFromQueueRow(row),
+      }),
+    );
     const count = typeof data?.count === 'number' ? data.count : results.length;
     const rawCounts = data?.status_counts;
     const statusCounts: AdminSubmissionListStatusCounts = {
-      submitted: typeof rawCounts?.submitted === 'number' ? rawCounts.submitted : 0,
-      approved: typeof rawCounts?.approved === 'number' ? rawCounts.approved : 0,
-      rejected: typeof rawCounts?.rejected === 'number' ? rawCounts.rejected : 0,
+      submitted:
+        typeof rawCounts?.submitted === 'number' ? rawCounts.submitted : 0,
+      approved:
+        typeof rawCounts?.approved === 'number' ? rawCounts.approved : 0,
+      rejected:
+        typeof rawCounts?.rejected === 'number' ? rawCounts.rejected : 0,
     };
     return {
       count,
@@ -471,7 +559,9 @@ export const adminSubmissionsApi = {
     };
   },
 
-  getFilterOptions: async (usageKey: string): Promise<AdminSubmissionListFilterOptions> => {
+  getFilterOptions: async (
+    usageKey: string,
+  ): Promise<AdminSubmissionListFilterOptions> => {
     const { data } = await http().get(
       `${tasBase()}/block/${encodeURIComponent(usageKey)}/submissions/filter-options/`,
     );
@@ -492,12 +582,25 @@ export const adminSubmissionsApi = {
 
   submitFeedback: async (
     submissionId: string,
-    payload: { rubrics?: RubricFeedbackEntry[]; comment?: string; status?: string },
+    payload: {
+      rubrics?: RubricFeedbackEntry[];
+      comment?: string;
+      status?: string;
+    },
   ): Promise<void> => {
-    await http().post(`${tasBase()}/submissions/${submissionId}/feedback/`, payload);
+    await http().post(
+      `${tasBase()}/submissions/${submissionId}/feedback/`,
+      payload,
+    );
+  },
+
+  publishCurieReview: async (submissionId: string): Promise<void> => {
+    await http().post(`${tasBase()}/submissions/${submissionId}/curie-review/`);
   },
 
   withdrawFeedback: async (submissionId: string): Promise<void> => {
-    await http().post(`${tasBase()}/submissions/${submissionId}/feedback/withdraw/`);
+    await http().post(
+      `${tasBase()}/submissions/${submissionId}/feedback/withdraw/`,
+    );
   },
 };

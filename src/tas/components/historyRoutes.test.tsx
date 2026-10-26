@@ -24,7 +24,9 @@ jest.mock('../services/api', () => ({
   },
 }));
 
-const { loadOwnedSubmission, loadAssignedTemplate } = jest.requireMock('../services/ownedSubmission');
+const { loadOwnedSubmission, loadAssignedTemplate } = jest.requireMock(
+  '../services/ownedSubmission',
+);
 const { submissionsApi } = jest.requireMock('../services/api');
 
 const usageKey = 'block-v1:VigyanShaala+STEM101+2026_T3+type@tas+block@demo';
@@ -43,12 +45,20 @@ describe('reload-safe history routes', () => {
     loadAssignedTemplate.mockResolvedValue({
       id: '1',
       name: 'Personal SWOT',
-      fields: [{
-        id: 'goal', label: 'Goal', type: 'textarea', required: true,
-      }],
+      fields: [
+        {
+          id: 'goal',
+          label: 'Goal',
+          type: 'textarea',
+          required: true,
+        },
+      ],
       field_positions: {
         goal: {
-          x: 10, y: 10, width: 80, height: 10,
+          x: 10,
+          y: 10,
+          width: 80,
+          height: 10,
         },
       },
       image_url: '',
@@ -57,21 +67,23 @@ describe('reload-safe history routes', () => {
     });
     submissionsApi.getVersions.mockResolvedValue({
       submission_id: '9',
-      versions: [{
-        version_number: 4,
-        attempt_number: 1,
-        submitted_at: '2026-09-13T00:00:00Z',
-        feedback_available: true,
-        feedback_unavailable_reason: null,
-        feedback_status: 'approved',
-        instructor_comment: '',
-        pdf_url: null,
-        download_url: null,
-        curie_review_status: 'ready',
-        feedback_source: 'curie',
-        verdict: 'accepted',
-        star_rating: 4,
-      }],
+      versions: [
+        {
+          version_number: 4,
+          attempt_number: 1,
+          submitted_at: '2026-09-13T00:00:00Z',
+          feedback_available: true,
+          feedback_unavailable_reason: null,
+          feedback_status: 'approved',
+          instructor_comment: '',
+          pdf_url: null,
+          download_url: null,
+          curie_review_status: 'ready',
+          feedback_source: 'curie',
+          verdict: 'accepted',
+          star_rating: 4,
+        },
+      ],
     });
     submissionsApi.getCurieReview.mockResolvedValue({
       status: 'ready',
@@ -89,9 +101,14 @@ describe('reload-safe history routes', () => {
 
   it('bootstraps versions from the usageKey history URL', async () => {
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history`]}>
+      <MemoryRouter
+        initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history`]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history" element={<SubmissionHistoryPage />} />
+          <Route
+            path="/submission/:usageKey/history"
+            element={<SubmissionHistoryPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -104,11 +121,60 @@ describe('reload-safe history routes', () => {
     expect(await screen.findByText('View Detailed Feedback')).toBeTruthy();
   });
 
+  it('offers a status view while completed feedback awaits instructor review', async () => {
+    submissionsApi.getVersions.mockResolvedValue({
+      submission_id: '9',
+      versions: [
+        {
+          version_number: 4,
+          attempt_number: 1,
+          submitted_at: '2026-09-13T00:00:00Z',
+          feedback_available: false,
+          feedback_unavailable_reason: 'pending',
+          feedback_status: null,
+          instructor_comment: '',
+          pdf_url: null,
+          download_url: null,
+          curie_review_status: 'pending_evaluation',
+          awaiting_instructor_approval: true,
+          feedback_source: null,
+          verdict: null,
+          star_rating: null,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history`]}
+      >
+        <Routes>
+          <Route
+            path="/submission/:usageKey/history"
+            element={<SubmissionHistoryPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Awaiting Instructor Review')).toBeTruthy();
+    expect(
+      await screen.findByRole('button', { name: 'View Review Status' }),
+    ).toBeTruthy();
+  });
+
   it('bootstraps a versioned review from the historical-review URL', async () => {
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history/4`]}>
+      <MemoryRouter
+        initialEntries={[
+          `/submission/${encodeURIComponent(usageKey)}/history/4`,
+        ]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history/:version" element={<HistoricalReviewPage />} />
+          <Route
+            path="/submission/:usageKey/history/:version"
+            element={<HistoricalReviewPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -121,29 +187,40 @@ describe('reload-safe history routes', () => {
   it('renders legacy human historical feedback when the CURIE review is absent', async () => {
     submissionsApi.getVersions.mockResolvedValue({
       submission_id: '9',
-      versions: [{
-        version_number: 3,
-        attempt_number: 1,
-        submitted_at: '2026-09-13T00:00:00Z',
-        feedback_available: true,
-        feedback_unavailable_reason: null,
-        feedback_status: 'approved',
-        instructor_comment: 'Graded by the instructor.',
-        pdf_url: null,
-        download_url: null,
-        curie_review_status: null,
-        feedback_source: 'human',
-        verdict: null,
-        star_rating: null,
-      }],
+      versions: [
+        {
+          version_number: 3,
+          attempt_number: 1,
+          submitted_at: '2026-09-13T00:00:00Z',
+          feedback_available: true,
+          feedback_unavailable_reason: null,
+          feedback_status: 'approved',
+          instructor_comment: 'Graded by the instructor.',
+          pdf_url: null,
+          download_url: null,
+          curie_review_status: null,
+          feedback_source: 'human',
+          verdict: null,
+          star_rating: null,
+        },
+      ],
     });
-    const notFound = Object.assign(new Error('Not found'), { response: { status: 404 } });
+    const notFound = Object.assign(new Error('Not found'), {
+      response: { status: 404 },
+    });
     submissionsApi.getCurieReview.mockRejectedValue(notFound);
 
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history/3`]}>
+      <MemoryRouter
+        initialEntries={[
+          `/submission/${encodeURIComponent(usageKey)}/history/3`,
+        ]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history/:version" element={<HistoricalReviewPage />} />
+          <Route
+            path="/submission/:usageKey/history/:version"
+            element={<HistoricalReviewPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -155,29 +232,40 @@ describe('reload-safe history routes', () => {
   it('falls back to human historical feedback when the CURIE review endpoint returns 404', async () => {
     submissionsApi.getVersions.mockResolvedValue({
       submission_id: '9',
-      versions: [{
-        version_number: 3,
-        attempt_number: 1,
-        submitted_at: '2026-09-13T00:00:00Z',
-        feedback_available: true,
-        feedback_unavailable_reason: null,
-        feedback_status: 'rejected',
-        instructor_comment: 'Please revise the SWOT.',
-        pdf_url: null,
-        download_url: null,
-        curie_review_status: 'failed',
-        feedback_source: 'curie',
-        verdict: null,
-        star_rating: null,
-      }],
+      versions: [
+        {
+          version_number: 3,
+          attempt_number: 1,
+          submitted_at: '2026-09-13T00:00:00Z',
+          feedback_available: true,
+          feedback_unavailable_reason: null,
+          feedback_status: 'rejected',
+          instructor_comment: 'Please revise the SWOT.',
+          pdf_url: null,
+          download_url: null,
+          curie_review_status: 'failed',
+          feedback_source: 'curie',
+          verdict: null,
+          star_rating: null,
+        },
+      ],
     });
-    const notFound = Object.assign(new Error('Not found'), { response: { status: 404 } });
+    const notFound = Object.assign(new Error('Not found'), {
+      response: { status: 404 },
+    });
     submissionsApi.getCurieReview.mockRejectedValue(notFound);
 
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history/3`]}>
+      <MemoryRouter
+        initialEntries={[
+          `/submission/${encodeURIComponent(usageKey)}/history/3`,
+        ]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history/:version" element={<HistoricalReviewPage />} />
+          <Route
+            path="/submission/:usageKey/history/:version"
+            element={<HistoricalReviewPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -189,21 +277,23 @@ describe('reload-safe history routes', () => {
   it('prefers finalized human override over a successful ready CURIE review', async () => {
     submissionsApi.getVersions.mockResolvedValue({
       submission_id: '9',
-      versions: [{
-        version_number: 4,
-        attempt_number: 1,
-        submitted_at: '2026-09-13T00:00:00Z',
-        feedback_available: true,
-        feedback_unavailable_reason: null,
-        feedback_status: 'approved',
-        instructor_comment: 'Instructor override.',
-        pdf_url: null,
-        download_url: null,
-        curie_review_status: 'ready',
-        feedback_source: 'human',
-        verdict: 'accepted',
-        star_rating: 4,
-      }],
+      versions: [
+        {
+          version_number: 4,
+          attempt_number: 1,
+          submitted_at: '2026-09-13T00:00:00Z',
+          feedback_available: true,
+          feedback_unavailable_reason: null,
+          feedback_status: 'approved',
+          instructor_comment: 'Instructor override.',
+          pdf_url: null,
+          download_url: null,
+          curie_review_status: 'ready',
+          feedback_source: 'human',
+          verdict: 'accepted',
+          star_rating: 4,
+        },
+      ],
     });
     submissionsApi.getCurieReview.mockResolvedValue({
       status: 'ready',
@@ -219,9 +309,16 @@ describe('reload-safe history routes', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history/4`]}>
+      <MemoryRouter
+        initialEntries={[
+          `/submission/${encodeURIComponent(usageKey)}/history/4`,
+        ]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history/:version" element={<HistoricalReviewPage />} />
+          <Route
+            path="/submission/:usageKey/history/:version"
+            element={<HistoricalReviewPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );
@@ -237,9 +334,14 @@ describe('reload-safe history routes', () => {
       versions: [],
     });
     render(
-      <MemoryRouter initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history`]}>
+      <MemoryRouter
+        initialEntries={[`/submission/${encodeURIComponent(usageKey)}/history`]}
+      >
         <Routes>
-          <Route path="/submission/:usageKey/history" element={<SubmissionHistoryPage />} />
+          <Route
+            path="/submission/:usageKey/history"
+            element={<SubmissionHistoryPage />}
+          />
         </Routes>
       </MemoryRouter>,
     );

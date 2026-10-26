@@ -4,6 +4,7 @@ import {
   GATE_OVERALL_LABEL,
   INSTRUCTOR_FAILED_RECOVERY_COPY,
   INSTRUCTOR_HUMAN_OWNS_COPY,
+  INSTRUCTOR_AWAITING_APPROVAL_COPY,
   INSTRUCTOR_OVERRIDE_COPY,
   INSTRUCTOR_PENDING_COPY,
   INSTRUCTOR_SLOW_PENDING_COPY,
@@ -65,6 +66,12 @@ export const InstructorCuriePanel: React.FC<Props> = ({
           {review?.error_detail ? (
             <div className="mt-1 text-muted">{review.error_detail}</div>
           ) : null}
+        </div>
+      )}
+
+      {presentation.canPublish && (
+        <div className="alert alert-info small mb-3" role="status">
+          {INSTRUCTOR_AWAITING_APPROVAL_COPY}
         </div>
       )}
 

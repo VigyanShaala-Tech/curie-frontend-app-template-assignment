@@ -15,7 +15,10 @@ function canOpenFeedback(version: SubmissionVersion): boolean {
   );
 }
 
-export const LearnerAttemptHistory: React.FC<Props> = ({ versions, onViewFeedback }) => (
+export const LearnerAttemptHistory: React.FC<Props> = ({
+  versions,
+  onViewFeedback,
+}) => (
   <div className="curie-attempt-history">
     {versions.length === 0 ? (
       <p className="text-muted small mb-0">No submitted attempts yet.</p>
@@ -32,24 +35,33 @@ export const LearnerAttemptHistory: React.FC<Props> = ({ versions, onViewFeedbac
         </thead>
         <tbody>
           {versions.map((version, index) => {
-            const attempt = version.attempt_number ?? (versions.length - index);
+            const attempt = version.attempt_number ?? versions.length - index;
             const stars = wholeStarCount(version.star_rating);
             const openable = canOpenFeedback(version);
             return (
               <tr key={version.version_number}>
                 <td data-label="Attempt">{`Attempt ${attempt}`}</td>
                 <td data-label="Submitted">
-                  {version.submitted_at ? new Date(version.submitted_at).toLocaleString() : '—'}
+                  {version.submitted_at
+                    ? new Date(version.submitted_at).toLocaleString()
+                    : '—'}
                 </td>
                 <td data-label="Status">
-                  <span className={`curie-history-badge ${historyRowStatus(version).replace(/\s+/g, '-').toLowerCase()}`}>
+                  <span
+                    className={`curie-history-badge ${historyRowStatus(version).replace(/\s+/g, '-').toLowerCase()}`}
+                  >
                     {historyRowStatus(version)}
                   </span>
                 </td>
                 <td data-label="Rating" className="curie-stars-cell">
-                  {version.star_rating == null
-                    ? <span className="curie-pending-dash">—</span>
-                    : <span aria-label={`${stars} out of 5 stars`}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>}
+                  {version.star_rating == null ? (
+                    <span className="curie-pending-dash">—</span>
+                  ) : (
+                    <span aria-label={`${stars} out of 5 stars`}>
+                      {'★'.repeat(stars)}
+                      {'☆'.repeat(5 - stars)}
+                    </span>
+                  )}
                 </td>
                 <td>
                   <button
@@ -58,7 +70,9 @@ export const LearnerAttemptHistory: React.FC<Props> = ({ versions, onViewFeedbac
                     disabled={!openable}
                     onClick={() => onViewFeedback(version)}
                   >
-                    View Detailed Feedback
+                    {version.awaiting_instructor_approval
+                      ? 'View Review Status'
+                      : 'View Detailed Feedback'}
                   </button>
                 </td>
               </tr>

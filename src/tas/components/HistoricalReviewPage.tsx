@@ -6,20 +6,32 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTasStore } from '../store/tasStore';
 import { submissionsApi } from '../services/api';
-import { loadAssignedTemplate, loadOwnedSubmission } from '../services/ownedSubmission';
+import {
+  loadAssignedTemplate,
+  loadOwnedSubmission,
+} from '../services/ownedSubmission';
 import { StudentFeedbackPanel } from './StudentFeedbackPanel';
 import { CurieReviewScreen } from './CurieReviewScreen';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
 import type {
-  LearnerCurieReview, Submission, SubmissionFeedback, SubmissionVersion, Template,
+  LearnerCurieReview,
+  Submission,
+  SubmissionFeedback,
+  SubmissionVersion,
+  Template,
 } from '../types';
-import { buildStudentMfeContext, decodeUsageKeyParam } from '../utils/studentMfeContext';
+import {
+  buildStudentMfeContext,
+  decodeUsageKeyParam,
+} from '../utils/studentMfeContext';
 
 function isNotFound(err: any): boolean {
   return err?.response?.status === 404;
 }
 
-function humanFeedbackFromVersion(version: SubmissionVersion | undefined): SubmissionFeedback | null {
+function humanFeedbackFromVersion(
+  version: SubmissionVersion | undefined,
+): SubmissionFeedback | null {
   if (!version?.feedback_available) {
     return null;
   }
@@ -34,12 +46,24 @@ function humanOwnsVersion(version: SubmissionVersion | undefined): boolean {
   return version?.feedback_source === 'human';
 }
 
-function historicalDisplayState(review: LearnerCurieReview | null): DisplayState {
-  if (!review) { return 'legacy'; }
-  if (review.status === 'pending_evaluation') { return 'pending'; }
-  if (review.status === 'failed') { return 'live_failed'; }
-  if (review.verdict === 'accepted') { return 'curie_accepted'; }
-  if (review.verdict === 'rejected') { return 'curie_rejected'; }
+function historicalDisplayState(
+  review: LearnerCurieReview | null,
+): DisplayState {
+  if (!review) {
+    return 'legacy';
+  }
+  if (review.status === 'pending_evaluation') {
+    return 'pending';
+  }
+  if (review.status === 'failed') {
+    return 'live_failed';
+  }
+  if (review.verdict === 'accepted') {
+    return 'curie_accepted';
+  }
+  if (review.verdict === 'rejected') {
+    return 'curie_rejected';
+  }
   return 'legacy';
 }
 
@@ -59,17 +83,25 @@ export const HistoricalReviewPage: React.FC = () => {
   const [template, setTemplate] = useState<Template | null>(null);
   const [versionSummary, setVersionSummary] = useState<SubmissionVersion | null>(null);
   const [review, setReview] = useState<LearnerCurieReview | null>(null);
-  const [humanFeedback, setHumanFeedback] = useState<SubmissionFeedback | null>(null);
+  const [humanFeedback, setHumanFeedback] = useState<SubmissionFeedback | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!usageKey) { return; }
+    if (!usageKey) {
+      return;
+    }
     setMfeContext(buildStudentMfeContext(usageKey));
   }, [usageKey, setMfeContext]);
 
   useEffect(() => {
-    if (!mfeContext || mfeContext.usageKey !== usageKey || Number.isNaN(versionNumber)) {
+    if (
+      !mfeContext
+      || mfeContext.usageKey !== usageKey
+      || Number.isNaN(versionNumber)
+    ) {
       return undefined;
     }
     let cancelled = false;
@@ -77,9 +109,14 @@ export const HistoricalReviewPage: React.FC = () => {
     setError(null);
     setReview(null);
     setHumanFeedback(null);
-    Promise.all([loadOwnedSubmission(mfeContext), loadAssignedTemplate(mfeContext)])
+    Promise.all([
+      loadOwnedSubmission(mfeContext),
+      loadAssignedTemplate(mfeContext),
+    ])
       .then(async ([owned, assigned]) => {
-        if (cancelled) { return; }
+        if (cancelled) {
+          return;
+        }
         setSubmission(owned);
         setTemplate(assigned);
         if (!owned) {
@@ -87,63 +124,84 @@ export const HistoricalReviewPage: React.FC = () => {
           return;
         }
         const versionsRes = await submissionsApi.getVersions(owned.id);
-        const summary = versionsRes.versions.find((item) => item.version_number === versionNumber);
+        const summary = versionsRes.versions.find(
+          (item) => item.version_number === versionNumber,
+        );
         setVersionSummary(summary ?? null);
         const human = humanFeedbackFromVersion(summary);
 
         if (humanOwnsVersion(summary) || !summary?.curie_review_status) {
-          if (!cancelled) { setHumanFeedback(human); }
+          if (!cancelled) {
+            setHumanFeedback(human);
+          }
           return;
         }
 
         try {
-          const payload = await submissionsApi.getCurieReview(owned.id, versionNumber);
-          if (!cancelled) { setReview(payload); }
+          const payload = await submissionsApi.getCurieReview(
+            owned.id,
+            versionNumber,
+          );
+          if (!cancelled) {
+            setReview(payload);
+          }
         } catch (err) {
           if (!isNotFound(err)) {
             throw err;
           }
-          if (!cancelled) { setHumanFeedback(human); }
+          if (!cancelled) {
+            setHumanFeedback(human);
+          }
         }
       })
       .catch(() => {
-        if (!cancelled) { setError('Unable to load this attempt’s review.'); }
+        if (!cancelled) {
+          setError('Unable to load this attempt’s review.');
+        }
       })
       .finally(() => {
-        if (!cancelled) { setLoading(false); }
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [mfeContext, usageKey, versionNumber]);
 
-  if (!usageKey) { return null; }
+  if (!usageKey) {
+    return null;
+  }
 
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
   const displayState = historicalDisplayState(review);
   const showCurie = Boolean(
     template
     && review
-    && (
-      displayState === 'pending'
+    && (displayState === 'pending'
       || displayState === 'live_failed'
       || displayState === 'curie_accepted'
-      || displayState === 'curie_rejected'
-    ),
+      || displayState === 'curie_rejected'),
   );
 
   return (
     <div className="curie-history-page">
-      {loading && (
-        <div style={{ padding: 24 }}>Loading review…</div>
-      )}
+      {loading && <div style={{ padding: 24 }}>Loading review…</div>}
       {error && (
-        <div style={{ padding: 24 }} role="alert">{error}</div>
+        <div style={{ padding: 24 }} role="alert">
+          {error}
+        </div>
       )}
       {!loading && !error && showCurie && template && (
         <CurieReviewScreen
           template={template}
-          displayState={displayState as 'pending' | 'live_failed' | 'curie_accepted' | 'curie_rejected'}
+          displayState={
+            displayState as
+              | 'pending'
+              | 'live_failed'
+              | 'curie_accepted'
+              | 'curie_rejected'
+          }
           review={review}
           title={template.name}
           submittedAt={versionSummary?.submitted_at}
@@ -152,6 +210,10 @@ export const HistoricalReviewPage: React.FC = () => {
           atMaxAttempts={false}
           canReattempt={false}
           isSlowPending={Boolean(review?.is_slow_pending)}
+          awaitingInstructorApproval={Boolean(
+            review?.awaiting_instructor_approval
+            || versionSummary?.awaiting_instructor_approval,
+          )}
           isSaving={false}
           isMobile={isMobile}
           historical
@@ -167,7 +229,10 @@ export const HistoricalReviewPage: React.FC = () => {
           </div>
           {humanFeedback && <StudentFeedbackPanel feedback={humanFeedback} />}
           {!review && !humanFeedback && submission && (
-            <div>No CURIE review is stored for this attempt. Legacy human feedback remains on the assignment page.</div>
+            <div>
+              No CURIE review is stored for this attempt. Legacy human feedback
+              remains on the assignment page.
+            </div>
           )}
         </div>
       )}

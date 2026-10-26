@@ -38,18 +38,30 @@ const template: Template = {
   thumbnail_url: '',
   fields: [
     {
-      id: 'goal', label: 'Goal', type: 'textarea', required: true,
+      id: 'goal',
+      label: 'Goal',
+      type: 'textarea',
+      required: true,
     },
     {
-      id: 'contribution', label: 'Contribution', type: 'textarea', required: false,
+      id: 'contribution',
+      label: 'Contribution',
+      type: 'textarea',
+      required: false,
     },
   ],
   field_positions: {
     goal: {
-      x: 10, y: 10, width: 80, height: 10,
+      x: 10,
+      y: 10,
+      width: 80,
+      height: 10,
     },
     contribution: {
-      x: 10, y: 70, width: 80, height: 10,
+      x: 10,
+      y: 70,
+      width: 80,
+      height: 10,
     },
   },
   is_public: true,
@@ -85,7 +97,9 @@ const readyReview: LearnerCurieReview = {
   completed_at: null,
 };
 
-function renderScreen(overrides: Partial<React.ComponentProps<typeof CurieReviewScreen>> = {}) {
+function renderScreen(
+  overrides: Partial<React.ComponentProps<typeof CurieReviewScreen>> = {},
+) {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <MemoryRouter>
@@ -117,19 +131,41 @@ describe('CurieReviewScreen', () => {
 
   it('asks the worksheet canvas to fit its desktop pane', () => {
     renderScreen();
-    expect(screen.getByText('worksheet-canvas').getAttribute('data-fit-pane')).toBe('true');
+    expect(
+      screen.getByText('worksheet-canvas').getAttribute('data-fit-pane'),
+    ).toBe('true');
   });
 
   it('shows pending copy and no edit action while CURIE is evaluating', () => {
     renderScreen({
       displayState: 'pending',
       review: {
-        ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [],
+        ...readyReview,
+        status: 'pending_evaluation',
+        verdict: null,
+        field_feedback: [],
       },
       canReattempt: false,
     });
     expect(screen.getByText(/Curie is reviewing your submission/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit Assignment' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Edit Assignment' }),
+    ).toBeNull();
+  });
+
+  it('shows instructor-review copy without exposing held feedback', () => {
+    renderScreen({
+      displayState: 'pending',
+      awaitingInstructorApproval: true,
+      review: null,
+      canReattempt: false,
+    });
+    expect(screen.getByText('Awaiting Instructor Review')).toBeTruthy();
+    expect(
+      screen.getByText(/instructor is checking it before it is shared/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Curie is reviewing your submission/)).toBeNull();
+    expect(screen.queryByText('Strong overall feedback.')).toBeNull();
   });
 
   it('softens pending copy when the review is slow', () => {
@@ -137,7 +173,10 @@ describe('CurieReviewScreen', () => {
       displayState: 'pending',
       isSlowPending: true,
       review: {
-        ...readyReview, status: 'pending_evaluation', verdict: null, field_feedback: [],
+        ...readyReview,
+        status: 'pending_evaluation',
+        verdict: null,
+        field_feedback: [],
       },
       canReattempt: false,
     });
@@ -148,11 +187,16 @@ describe('CurieReviewScreen', () => {
     renderScreen({
       displayState: 'live_failed',
       review: {
-        ...readyReview, status: 'failed', verdict: null, field_feedback: [],
+        ...readyReview,
+        status: 'failed',
+        verdict: null,
+        field_feedback: [],
       },
     });
     expect(screen.getByText(/wasn't able to complete a review/)).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Edit Assignment' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('button', { name: 'Edit Assignment' }),
+    ).toHaveLength(1);
   });
 
   it('never renders diagnostic error detail for a historical failure', () => {
@@ -168,7 +212,9 @@ describe('CurieReviewScreen', () => {
         error_detail: 'HTTP 503 from internal-curie-host.example',
       },
     });
-    expect(screen.getByText('CURIE did not complete a review for this attempt.')).toBeTruthy();
+    expect(
+      screen.getByText('CURIE did not complete a review for this attempt.'),
+    ).toBeTruthy();
     expect(screen.queryByText(/HTTP 503/)).toBeNull();
   });
 
@@ -180,7 +226,9 @@ describe('CurieReviewScreen', () => {
     });
     expect(screen.getByText('Accepted')).toBeTruthy();
     expect(screen.getByLabelText('4 out of 5 stars')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit Assignment' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Edit Assignment' }),
+    ).toBeNull();
     expect(screen.getByText('Make the goal more specific.')).toBeTruthy();
   });
 
@@ -192,7 +240,10 @@ describe('CurieReviewScreen', () => {
 
     renderScreen({
       review: {
-        ...readyReview, field_feedback: [], star_rating: null, overall_feedback: 'Gate failed.',
+        ...readyReview,
+        field_feedback: [],
+        star_rating: null,
+        overall_feedback: 'Gate failed.',
       },
     });
     expect(screen.getByText('Gate failed.')).toBeTruthy();
@@ -203,16 +254,22 @@ describe('CurieReviewScreen', () => {
   it('opens the inline edit form and submits through the existing handler', async () => {
     const onRequestSubmit = jest.fn();
     renderScreen({ onRequestSubmit });
-    expect(screen.getAllByRole('button', { name: 'Edit Assignment' })).toHaveLength(1);
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    expect(
+      screen.getAllByRole('button', { name: 'Edit Assignment' }),
+    ).toHaveLength(1);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     expect(window.confirm).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText('Goal')).toBeTruthy();
     await userEvent.clear(screen.getByLabelText('Goal'));
     await userEvent.type(screen.getByLabelText('Goal'), 'A sharper STEM goal');
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(onRequestSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      goal: 'A sharper STEM goal',
-    }));
+    expect(onRequestSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goal: 'A sharper STEM goal',
+      }),
+    );
   });
 
   it('replaces edit with the cap message', () => {
@@ -231,7 +288,9 @@ describe('CurieReviewScreen', () => {
 
   it('locks the worksheet when a rejected reattempt becomes pending', async () => {
     const view = renderScreen();
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     expect(screen.getByLabelText('Goal')).toBeTruthy();
 
     view.rerender(
@@ -270,10 +329,15 @@ describe('CurieReviewScreen', () => {
     const view = renderScreen({
       displayState: 'live_failed',
       review: {
-        ...readyReview, status: 'failed', verdict: null, field_feedback: [],
+        ...readyReview,
+        status: 'failed',
+        verdict: null,
+        field_feedback: [],
       },
     });
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     expect(screen.getByLabelText('Goal')).toBeTruthy();
 
     view.rerender(
@@ -316,15 +380,23 @@ describe('CurieReviewScreen', () => {
         image_height: 40,
         field_positions: {
           goal: {
-            x: 0, y: 0, width: 8, height: 6,
+            x: 0,
+            y: 0,
+            width: 8,
+            height: 6,
           },
           contribution: {
-            x: 0, y: 20, width: 8, height: 6,
+            x: 0,
+            y: 20,
+            width: 8,
+            height: 6,
           },
         },
       },
     });
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     const goal = screen.getByLabelText('Goal') as HTMLTextAreaElement;
     await userEvent.clear(goal);
     await userEvent.type(goal, 'x'.repeat(40));
@@ -336,8 +408,12 @@ describe('CurieReviewScreen', () => {
     const scrollIntoView = jest.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     renderScreen({ isMobile: true });
-    await userEvent.click(screen.getByRole('button', { name: 'Field 1: Goal' }));
-    expect(screen.getByRole('tab', { name: 'Review' }).getAttribute('aria-selected')).toBe('true');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Field 1: Goal' }),
+    );
+    expect(
+      screen.getByRole('tab', { name: 'Review' }).getAttribute('aria-selected'),
+    ).toBe('true');
     await waitFor(() => {
       expect(scrollIntoView).toHaveBeenCalled();
     });
@@ -345,35 +421,58 @@ describe('CurieReviewScreen', () => {
 
   it('previews unsaved edits and preserves them when returning to edit', async () => {
     const onRequestSubmit = jest.fn();
-    renderScreen({ onRequestSubmit });
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    renderScreen({ onRequestSubmit, isMobile: true });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     await userEvent.clear(screen.getByLabelText('Goal'));
     await userEvent.type(screen.getByLabelText('Goal'), 'A sharper STEM goal');
 
     await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
     const canvas = screen.getByText('worksheet-canvas');
-    expect(canvas.getAttribute('data-form-data')).toContain('A sharper STEM goal');
+    expect(canvas.getAttribute('data-form-data')).toContain(
+      'A sharper STEM goal',
+    );
     expect(screen.queryByRole('button', { name: 'Field 1: Goal' })).toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe('A sharper STEM goal');
+    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
+      'A sharper STEM goal',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(onRequestSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      goal: 'A sharper STEM goal',
-    }));
+    expect(onRequestSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goal: 'A sharper STEM goal',
+      }),
+    );
   });
 
   it('clears only the local edit draft after confirmation', async () => {
     renderScreen();
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Clear All' }));
-    expect(screen.getByText(/previous submitted attempt will not be changed/)).toBeTruthy();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Clear All' }).at(-1)!);
-    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe('');
-    expect((screen.getByLabelText('Contribution') as HTMLTextAreaElement).value).toBe('');
+    expect(
+      screen.getByText(/previous submitted attempt will not be changed/),
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Clear All' }).at(-1)!,
+    );
+    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
+      '',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Contribution →' }));
+    expect(
+      (screen.getByLabelText('Contribution') as HTMLTextAreaElement).value,
+    ).toBe('');
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }));
-    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe('Get better');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
+    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
+      'Get better',
+    );
   });
 });

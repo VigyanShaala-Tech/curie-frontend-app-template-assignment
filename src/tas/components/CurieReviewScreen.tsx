@@ -14,10 +14,8 @@ import { CuriePinOverlay } from './CuriePinOverlay';
 import { CurieReviewList } from './CurieReviewList';
 import { CurieReviewPending } from './CurieReviewPending';
 import { CurieStarRating } from './CurieStarRating';
+import { AssignmentForm } from './AssignmentForm';
 import { PdfPoller } from './PdfPoller';
-import { getActiveFields } from '../utils/activeFields';
-import { applyTextCandidate } from '../utils/clampTextToField';
-import { resolveFieldLayout } from '../utils/fieldLayout';
 import {
   CAP_REACHED_MESSAGE,
   HISTORICAL_FAILED_COPY,
@@ -26,12 +24,17 @@ import {
 } from '../utils/curieReview';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
 import type {
-  FormField, LearnerCurieReview, Submission, Template,
+  LearnerCurieReview,
+  Submission,
+  Template,
 } from '../types';
 
 interface Props {
   template: Template;
-  displayState: Extract<DisplayState, 'pending' | 'live_failed' | 'curie_accepted' | 'curie_rejected'>;
+  displayState: Extract<
+  DisplayState,
+  'pending' | 'live_failed' | 'curie_accepted' | 'curie_rejected'
+  >;
   review: LearnerCurieReview | null;
   title: string;
   submittedAt?: string | null;
@@ -40,6 +43,7 @@ interface Props {
   atMaxAttempts: boolean;
   canReattempt: boolean;
   isSlowPending: boolean;
+  awaitingInstructorApproval?: boolean;
   isSaving: boolean;
   isMobile: boolean;
   historical?: boolean;
@@ -60,6 +64,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   atMaxAttempts,
   canReattempt,
   isSlowPending,
+  awaitingInstructorApproval = false,
   isSaving,
   isMobile,
   historical = false,
@@ -68,12 +73,13 @@ export const CurieReviewScreen: React.FC<Props> = ({
   onBack,
   onRequestSubmit,
 }) => {
-  const [mobileTab, setMobileTab] = useState<'worksheet' | 'review'>('worksheet');
+  const [mobileTab, setMobileTab] = useState<'worksheet' | 'review'>(
+    'worksheet',
+  );
   const [editing, setEditing] = useState(false);
   const [previewingDraft, setPreviewingDraft] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(formData);
-  const [capacityFull, setCapacityFull] = useState<Record<string, boolean>>({});
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
 
   const pending = displayState === 'pending';
@@ -87,14 +93,27 @@ export const CurieReviewScreen: React.FC<Props> = ({
       setPreviewingDraft(false);
       setClearConfirmOpen(false);
     }
-  }, [pending, canReattempt, atMaxAttempts, historical, displayState, review?.submission_version_number]);
+  }, [
+    pending,
+    canReattempt,
+    atMaxAttempts,
+    historical,
+    displayState,
+    review?.submission_version_number,
+  ]);
 
   useLayoutEffect(() => {
-    if (!pendingPinScroll) { return; }
-    if (isMobile && mobileTab !== 'review') { return; }
-    document.getElementById(`curie-field-review-${pendingPinScroll}`)?.scrollIntoView({
-      block: 'nearest',
-    });
+    if (!pendingPinScroll) {
+      return;
+    }
+    if (isMobile && mobileTab !== 'review') {
+      return;
+    }
+    document
+      .getElementById(`curie-field-review-${pendingPinScroll}`)
+      ?.scrollIntoView({
+        block: 'nearest',
+      });
     setPendingPinScroll(null);
   }, [pendingPinScroll, mobileTab, isMobile]);
 
@@ -103,7 +122,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
     [template.fields, review?.field_feedback],
   );
   const showPins = !pending && !liveFailed && !editing && orderedFeedback.length > 0;
-  const showStars = Boolean(review?.star_rating != null && orderedFeedback.length > 0);
+  const showStars = Boolean(
+    review?.star_rating != null && orderedFeedback.length > 0,
+  );
   const allowReattempt = !historical && canReattempt && !atMaxAttempts;
   const showCap = !historical && (rejected || liveFailed) && atMaxAttempts;
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
@@ -113,7 +134,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
     review?.verdict ?? (accepted ? 'accepted' : 'rejected'),
   );
   if (pending) {
-    verdictLabel = 'Pending Evaluation';
+    verdictLabel = awaitingInstructorApproval
+      ? 'Awaiting Instructor Review'
+      : 'Pending Evaluation';
   } else if (liveFailed) {
     verdictLabel = 'Review Unavailable';
   }
@@ -122,38 +145,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
     verdictClass = accepted || review?.verdict === 'accepted' ? 'accepted' : 'rejected';
   }
 
-  const activeFields = getActiveFields(template);
-  const fieldLayouts = useMemo(() => {
-    const imageW = template.image_width || 794;
-    const imageH = template.image_height || 1123;
-    const layouts: Record<string, ReturnType<typeof resolveFieldLayout>> = {};
-    activeFields.forEach((field: FormField) => {
-      if (field.type === 'select' || field.type === 'date' || field.type === 'number'
-        || field.type === 'checkbox' || field.type === 'radio') {
-        return;
-      }
-      const pos = template.field_positions[field.id];
-      if (!pos) { return; }
-      layouts[field.id] = resolveFieldLayout(field, pos, imageW, imageH);
-    });
-    return layouts;
-  }, [activeFields, template.field_positions, template.image_height, template.image_width]);
-
-  const updateDraftField = (fieldId: string, candidate: string) => {
-    setDraft((prev) => {
-      const layout = fieldLayouts[fieldId];
-      if (!layout) {
-        return { ...prev, [fieldId]: candidate };
-      }
-      const result = applyTextCandidate(prev[fieldId] ?? '', candidate, layout);
-      setCapacityFull((map) => ({ ...map, [fieldId]: result.capacityFull }));
-      return { ...prev, [fieldId]: result.value };
-    });
-  };
-
   const openEdit = () => {
     setDraft({ ...formData });
-    setCapacityFull({});
     setEditing(true);
     setPreviewingDraft(false);
     setMobileTab('worksheet');
@@ -167,19 +160,30 @@ export const CurieReviewScreen: React.FC<Props> = ({
 
   const clearDraft = () => {
     setDraft({});
-    setCapacityFull({});
     setClearConfirmOpen(false);
   };
 
   const confirmOpenEdit = () => {
-    if (window.confirm('Editing will let you revise your answers and resubmit for a new review. Continue?')) {
+    if (
+      window.confirm(
+        'Editing will let you revise your answers and resubmit for a new review. Continue?',
+      )
+    ) {
       openEdit();
     }
   };
 
   let reviewBody: React.ReactNode;
   if (pending) {
-    reviewBody = <CurieReviewPending variant={isSlowPending ? 'slow' : 'pending'} />;
+    let pendingVariant: 'pending' | 'slow' | 'awaiting_approval' = 'pending';
+    if (awaitingInstructorApproval) {
+      pendingVariant = 'awaiting_approval';
+    } else if (isSlowPending) {
+      pendingVariant = 'slow';
+    }
+    reviewBody = (
+      <CurieReviewPending variant={pendingVariant} />
+    );
   } else if (liveFailed && historical) {
     reviewBody = (
       <div>
@@ -195,7 +199,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
         <h3 className="curie-review-heading">Curie Review</h3>
         {showStars && <CurieStarRating rating={review?.star_rating} />}
         <div className="curie-section-title">Overall Feedback</div>
-        <div className="curie-overall-feedback">{review?.overall_feedback || 'No overall feedback.'}</div>
+        <div className="curie-overall-feedback">
+          {review?.overall_feedback || 'No overall feedback.'}
+        </div>
         <CurieReviewList fields={template.fields} feedback={orderedFeedback} />
       </div>
     );
@@ -237,7 +243,11 @@ export const CurieReviewScreen: React.FC<Props> = ({
   } else if (showCap) {
     leftActions = (
       <>
-        <button type="button" className="curie-resubmit-btn curie-bottom-btn" disabled>
+        <button
+          type="button"
+          className="curie-resubmit-btn curie-bottom-btn"
+          disabled
+        >
           Edit Assignment
         </button>
         <p className="curie-capped-message">{CAP_REACHED_MESSAGE}</p>
@@ -256,23 +266,30 @@ export const CurieReviewScreen: React.FC<Props> = ({
           <small>
             {attemptNumber ? `Attempt ${attemptNumber}` : null}
             {attemptNumber && submittedAt ? ' · ' : null}
-            {submittedAt ? `Submitted ${new Date(submittedAt).toLocaleString()}` : 'Submitted'}
+            {submittedAt
+              ? `Submitted ${new Date(submittedAt).toLocaleString()}`
+              : 'Submitted'}
           </small>
         </h2>
         <div className="curie-status-row">
-          <span className={`curie-verdict-badge ${verdictClass}`}>{verdictLabel}</span>
-          {allowReattempt && !editing
+          <span className={`curie-verdict-badge ${verdictClass}`}>
+            {verdictLabel}
+          </span>
+          {allowReattempt
+            && !editing
             && editAssignmentButton('curie-resubmit-btn curie-header-btn')}
           {editing && (
             <div className="curie-edit-header-actions">
-              <button
-                type="button"
-                className="curie-edit-mode-btn"
-                onClick={() => setPreviewingDraft((current) => !current)}
-                disabled={isSaving}
-              >
-                {previewingDraft ? 'Edit' : 'Preview'}
-              </button>
+              {isMobile && (
+                <button
+                  type="button"
+                  className="curie-edit-mode-btn"
+                  onClick={() => setPreviewingDraft((current) => !current)}
+                  disabled={isSaving}
+                >
+                  {previewingDraft ? 'Edit' : 'Preview'}
+                </button>
+              )}
               {!previewingDraft && (
                 <button
                   type="button"
@@ -286,12 +303,18 @@ export const CurieReviewScreen: React.FC<Props> = ({
             </div>
           )}
           {!historical && (
-            <Link className="curie-history-link" to={historyHref}>View Submission History</Link>
+            <Link className="curie-history-link" to={historyHref}>
+              View Submission History
+            </Link>
           )}
         </div>
       </header>
 
-      <div className="curie-mobile-tabs" role="tablist" aria-label="Review panels">
+      <div
+        className="curie-mobile-tabs"
+        role="tablist"
+        aria-label="Review panels"
+      >
         <button
           type="button"
           role="tab"
@@ -313,7 +336,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
       </div>
 
       <div className="curie-review-body">
-        <div className={`curie-half-left ${mobileTab === 'worksheet' ? 'mobile-active' : ''}`}>
+        <div
+          className={`curie-half-left ${mobileTab === 'worksheet' ? 'mobile-active' : ''}`}
+        >
           <div className="curie-panel">
             <div className="curie-left-scroll">
               {editing && !previewingDraft ? (
@@ -324,21 +349,12 @@ export const CurieReviewScreen: React.FC<Props> = ({
                     onRequestSubmit(draft);
                   }}
                 >
-                  {activeFields.map((field) => (
-                    <div key={field.id} className="curie-edit-form-field">
-                      <label htmlFor={`curie-reattempt-${field.id}`}>{field.label}</label>
-                      <textarea
-                        id={`curie-reattempt-${field.id}`}
-                        value={draft[field.id] ?? ''}
-                        onChange={(event) => updateDraftField(field.id, event.target.value)}
-                      />
-                      {capacityFull[field.id] && (
-                        <p className="curie-capacity-warning" role="status">
-                          This field has reached its maximum capacity.
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  <AssignmentForm
+                    template={template}
+                    values={draft}
+                    onChange={(fieldId, value) => setDraft((current) => ({ ...current, [fieldId]: value }))}
+                    isMobile={isMobile}
+                  />
                 </form>
               ) : (
                 <TemplateCanvas
@@ -346,36 +362,52 @@ export const CurieReviewScreen: React.FC<Props> = ({
                   readOnly
                   fitToPane
                   formDataOverride={editing ? draft : formData}
-                  overlay={showPins ? (
-                    <CuriePinOverlay
-                      fields={template.fields}
-                      positions={template.field_positions}
-                      feedback={orderedFeedback}
-                      isMobile={isMobile}
-                      onActivate={(fieldId) => {
-                        setPendingPinScroll(fieldId);
-                        if (isMobile) { setMobileTab('review'); }
-                      }}
-                    />
-                  ) : null}
+                  overlay={
+                    showPins ? (
+                      <CuriePinOverlay
+                        fields={template.fields}
+                        positions={template.field_positions}
+                        feedback={orderedFeedback}
+                        isMobile={isMobile}
+                        onActivate={(fieldId) => {
+                          setPendingPinScroll(fieldId);
+                          if (isMobile) {
+                            setMobileTab('review');
+                          }
+                        }}
+                      />
+                    ) : null
+                  }
                 />
               )}
             </div>
             {(allowReattempt || showCap) && (
-              <div className="curie-left-actions">
-                {leftActions}
-              </div>
+              <div className="curie-left-actions">{leftActions}</div>
             )}
-            {!historical && submission && <PdfPoller submissionOverride={submission} />}
+            {!historical && submission && (
+              <PdfPoller submissionOverride={submission} />
+            )}
           </div>
         </div>
 
-        <div className={`curie-half-right ${mobileTab === 'review' ? 'mobile-active' : ''}`}>
-          <div className="curie-panel curie-review-card">
-            <div className="curie-review-card-content">
-              {reviewBody}
+        <div
+          className={`curie-half-right ${mobileTab === 'review' ? 'mobile-active' : ''}`}
+        >
+          {editing && !isMobile ? (
+            <div className="curie-panel assignment-workspace__preview">
+              <h3>Live preview</h3>
+              <TemplateCanvas
+                template={template}
+                readOnly
+                fitToPane
+                formDataOverride={draft}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="curie-panel curie-review-card">
+              <div className="curie-review-card-content">{reviewBody}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -393,8 +425,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
           </ModalDialog.Header>
           <ModalDialog.Body>
             <p className="mb-0">
-              This will remove all responses currently shown in the assignment form.
-              The previous submitted attempt will not be changed.
+              This will remove all responses currently shown in the assignment
+              form. The previous submitted attempt will not be changed.
             </p>
           </ModalDialog.Body>
           <ModalDialog.Footer>

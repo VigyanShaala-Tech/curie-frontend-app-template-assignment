@@ -15,6 +15,7 @@ jest.mock('../../services/api', () => ({
     get: jest.fn(),
     getRubrics: jest.fn(),
     submitFeedback: jest.fn(),
+    publishCurieReview: jest.fn(),
   },
 }));
 
@@ -29,6 +30,7 @@ jest.mock('./InstructorCommentEditor', () => ({
 const getMock = adminSubmissionsApi.get as jest.Mock;
 const rubricsMock = adminSubmissionsApi.getRubrics as jest.Mock;
 const submitMock = adminSubmissionsApi.submitFeedback as jest.Mock;
+const publishMock = adminSubmissionsApi.publishCurieReview as jest.Mock;
 
 const pendingReview = {
   status: 'pending_evaluation',
@@ -68,6 +70,11 @@ const readyReview = {
     'Task Relevance': 9,
     'Reasoning / Understanding': 8,
   },
+};
+
+const heldReview = {
+  ...readyReview,
+  awaiting_instructor_approval: true,
 };
 
 function baseSubmission(overrides: Record<string, unknown> = {}) {
@@ -132,8 +139,10 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     getMock.mockReset();
     rubricsMock.mockReset();
     submitMock.mockReset();
+    publishMock.mockReset();
     rubricsMock.mockResolvedValue({ display_name: '', instructions: '', rubrics: [] });
     submitMock.mockResolvedValue(undefined);
+    publishMock.mockResolvedValue(undefined);
     useTasStore.setState({
       mfeContext: {
         usageKey: 'block-v1:VigyanShaala+STEM101+2026_T3+type@tas+block@demo',
@@ -173,6 +182,48 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     });
     expect(screen.queryByTestId('instructor-form-locked')).toBeNull();
     expect(screen.getByText(/You can grade this attempt now/)).toBeTruthy();
+  });
+
+  it('shows publish and override actions for a held ready review', async () => {
+    getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
+      curie_review: heldReview,
+    })));
+    renderDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Publish CURIE review' })).toBeTruthy();
+    });
+    expect(screen.getByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION })).toBeTruthy();
+    expect(screen.getByText(/Publish it unchanged or override it/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByTestId('curie-staff-output')).toBeTruthy();
+  });
+
+  it('publishes a held CURIE review unchanged', async () => {
+    getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
+      curie_review: heldReview,
+    })));
+    renderDetail();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Publish CURIE review' }));
+    await waitFor(() => {
+      expect(publishMock).toHaveBeenCalledWith('7');
+    });
+    expect(submitMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the existing human feedback endpoint when overriding a held review', async () => {
+    getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
+      curie_review: heldReview,
+    })));
+    renderDetail();
+
+    await userEvent.click(await screen.findByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reject' }));
+    await waitFor(() => {
+      expect(submitMock).toHaveBeenCalledWith('7', expect.objectContaining({ status: 'rejected' }));
+    });
+    expect(publishMock).not.toHaveBeenCalled();
   });
 
   it.each(['approved', 'rejected'] as const)(

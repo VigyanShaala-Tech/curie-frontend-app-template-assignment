@@ -566,7 +566,12 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
                             </Badge>
                           </td>
                           <td style={tdStyle}>
-                            <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
+                            <span className="small">
+                              {queueCurieStatusLabel(
+                                sub.curie_review_status,
+                                sub.awaiting_instructor_approval,
+                              )}
+                            </span>
                             {sub.instructor_form_locked && (
                             <div className="small text-muted">Locked</div>
                             )}

@@ -11,6 +11,8 @@ import {
 } from '@openedx/paragon';
 import { ArrowBack, Add, ZoomIn, ZoomOut, Refresh } from '@openedx/paragon/icons';
 import { templateTypesApi, adminTemplatesApi } from '../../services/api';
+import { validateStructuralMetadata } from '../../utils/assignmentStructure';
+import { FieldStructureControls } from './FieldStructureControls';
 import type { Template, FormField, FieldPosition, TemplateCreateBody } from '../../types';
 
 function generateFieldId() {
@@ -34,6 +36,7 @@ interface FieldRowProps {
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  sectionNames: string[];
 }
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -42,6 +45,7 @@ const FieldRow: React.FC<FieldRowProps> = ({
   field, index, isSelected, isDragOver,
   onSelect, onChange, onRemove,
   onDragStart, onDragOver, onDrop, onDragEnd,
+  sectionNames,
 }) => (
   <div
     draggable
@@ -155,6 +159,12 @@ const FieldRow: React.FC<FieldRowProps> = ({
           </div>
         </div>
 
+        <FieldStructureControls
+          field={field}
+          sectionNames={sectionNames}
+          onChange={onChange}
+        />
+
         {/* Font size + Max chars row */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
@@ -172,15 +182,25 @@ const FieldRow: React.FC<FieldRowProps> = ({
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
-              Max chars
+              Max chars (optional)
             </label>
             <Form.Control
               type="number"
               size="sm"
               min={1}
               max={500}
-              value={field.maxChars ?? 60}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...field, maxChars: parseInt(e.target.value, 10) || 60 })}
+              value={field.maxChars ?? ''}
+              placeholder="Template geometry"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const next = { ...field };
+                const parsed = parseInt(e.target.value, 10);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                  next.maxChars = parsed;
+                } else {
+                  delete next.maxChars;
+                }
+                onChange(next);
+              }}
             />
           </div>
         </div>
@@ -399,7 +419,22 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   }, []);
 
   const updateField = useCallback((updated: FormField) => {
-    setFields((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+    setFields((prev) => {
+      const previous = prev.find((field) => field.id === updated.id);
+      const section = updated.section?.trim();
+      const styleChanged = previous?.displayStyle !== updated.displayStyle;
+      return prev.map((field) => {
+        if (field.id === updated.id) return updated;
+        if (
+          styleChanged
+          && section
+          && field.section?.trim().toLocaleLowerCase() === section.toLocaleLowerCase()
+        ) {
+          return { ...field, displayStyle: updated.displayStyle };
+        }
+        return field;
+      });
+    });
   }, []);
 
   const removeField = useCallback((id: string) => {
@@ -467,6 +502,8 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   const handleSave = () => {
     if (!name.trim()) { alert('Please enter a template name.'); return; }
     if (!templateTypeId) { alert('Please select a template type.'); return; }
+    const structureErrors = validateStructuralMetadata(fields);
+    if (structureErrors.length > 0) { alert(structureErrors.join('\n')); return; }
     saveMut.mutate({
       template_type_id: templateTypeId,
       name: name.trim(),
@@ -484,6 +521,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   };
 
   const selectedPos = selectedFieldId ? positions[selectedFieldId] : null;
+  const sectionNames = Array.from(new Set(fields.map((field) => field.section?.trim()).filter(Boolean))) as string[];
   const setSelectedPos = (pos: FieldPosition) => { if (selectedFieldId) updatePosition(selectedFieldId, pos); };
 
   return (
@@ -619,6 +657,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                   setDragOverIndex(null);
                 }}
                 onDragEnd={() => { setDragFromIndex(null); setDragOverIndex(null); }}
+                sectionNames={sectionNames}
               />
             ))}
 

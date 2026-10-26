@@ -24,12 +24,33 @@ export interface TemplateTypesResponse {
 export interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'radio';
+  type:
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'date'
+  | 'select'
+  | 'checkbox'
+  | 'radio';
   required: boolean;
   options?: string[];
   placeholder?: string;
   fontSize?: number; // default font size in px (default 14)
   maxChars?: number; // max character limit (default 60)
+  /** Optional reusable learner-form grouping. Blank means a one-field section. */
+  section?: string;
+  /** Presentation for the containing section. Defaults to cards. */
+  displayStyle?: 'cards' | 'table' | 'stages';
+  /** Instructions shown once for the active learner step. */
+  sectionInstruction?: string;
+  /** Field-specific guidance shown next to the answer control. */
+  guidance?: string;
+  /** Table metadata; both values are required when displayStyle is table. */
+  tableRow?: string;
+  tableColumn?: string;
+  /** Stage metadata; both values are required when displayStyle is stages. */
+  stage?: string;
+  stageOrder?: number;
 }
 
 export interface FieldPosition {
@@ -133,7 +154,11 @@ export interface CurieFieldFeedback {
   weight: number;
   comment: string;
   color?: FieldColor;
-  criterion_scores?: Array<{ criterion: string; score: number; max_score: number }>;
+  criterion_scores?: Array<{
+    criterion: string;
+    score: number;
+    max_score: number;
+  }>;
 }
 
 export interface SubmissionFeedback {
@@ -148,6 +173,7 @@ export interface SubmissionFeedback {
 
 export interface LearnerCurieReview {
   status: CurieReviewStatus;
+  awaiting_instructor_approval?: boolean;
   verdict: CurieVerdict | null;
   overall_feedback: string;
   field_feedback: CurieFieldFeedback[];
@@ -172,6 +198,7 @@ export interface Submission {
   pdf_url: string;
   feedback?: SubmissionFeedback | null;
   curie_review_status?: CurieReviewStatus | null;
+  awaiting_instructor_approval?: boolean;
   is_slow_pending?: boolean;
   submission_attempt_count?: number;
   at_max_attempts?: boolean;
@@ -192,6 +219,7 @@ export interface SubmissionVersion {
   download_url: string | null;
   attempt_number?: number | null;
   curie_review_status?: CurieReviewStatus | null;
+  awaiting_instructor_approval?: boolean;
   feedback_source?: FeedbackSource | null;
   verdict?: CurieVerdict | null;
   star_rating?: number | null;

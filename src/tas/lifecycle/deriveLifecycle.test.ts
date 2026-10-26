@@ -141,4 +141,19 @@ describe('deriveLifecycle', () => {
       atMaxAttempts: true,
     });
   });
+
+  it('allows a reopened human-rejected draft to use the legacy resubmit flow', () => {
+    expect(deriveLifecycle({
+      submissionStatus: 'draft',
+      curieReviewStatus: 'ready',
+      feedbackSource: 'human',
+      hasFeedback: true,
+    })).toMatchObject({
+      displayState: 'draft',
+      canEdit: true,
+      canSubmit: true,
+      canReattempt: false,
+      isCanvasReadOnly: false,
+    });
+  });
 });
