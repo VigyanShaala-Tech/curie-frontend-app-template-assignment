@@ -419,6 +419,51 @@ describe('CurieReviewScreen', () => {
     });
   });
 
+  it('shows one combined final review linked from contribution and reflection', () => {
+    const combinedTemplate: Template = {
+      ...template,
+      fields: [
+        ...template.fields,
+        {
+          id: 'reflection',
+          label: 'Personal Development Reflection',
+          type: 'textarea',
+          required: false,
+        },
+      ],
+      field_positions: {
+        ...template.field_positions,
+        reflection: {
+          x: 10,
+          y: 85,
+          width: 80,
+          height: 10,
+        },
+      },
+    };
+    renderScreen({
+      template: combinedTemplate,
+      review: {
+        ...readyReview,
+        field_feedback: [
+          readyReview.field_feedback[0],
+          {
+            field_id: 'reflection',
+            weight: 1,
+            comment: 'One comment for both final reflections.',
+            color: 'good',
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('Reflection: Broader Contribution & Personal Development')).toBeTruthy();
+    expect(screen.getAllByRole('button', {
+      name: 'Field 2: Reflection: Broader Contribution & Personal Development',
+    })).toHaveLength(2);
+    expect(screen.getAllByText('One comment for both final reflections.')).toHaveLength(1);
+  });
+
   it('previews unsaved edits and preserves them when returning to edit', async () => {
     const onRequestSubmit = jest.fn();
     renderScreen({ onRequestSubmit, isMobile: true });

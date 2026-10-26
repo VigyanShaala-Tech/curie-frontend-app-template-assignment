@@ -13,6 +13,60 @@ export const FIELD_COLOR_LABEL: Record<Exclude<FieldColor, null>, string> = {
   needs_revision: 'Needs revision',
 };
 
+export const COMBINED_REFLECTION_LABEL = (
+  'Reflection: Broader Contribution & Personal Development'
+);
+
+const CONTRIBUTION_FIELD_ID = 'contribution';
+const REFLECTION_FIELD_ID = 'reflection';
+
+export function fieldLabel(
+  fields: FormField[] | undefined,
+  fieldId: string,
+): string {
+  return fields?.find((field) => field.id === fieldId)?.label ?? fieldId;
+}
+
+export function isCombinedReflectionFeedback(
+  fieldIds: string[],
+  feedback: Array<{ field_id: string }> | undefined,
+): boolean {
+  const ids = new Set(fieldIds);
+  const feedbackIds = new Set((feedback ?? []).map((entry) => entry.field_id));
+  return ids.has(CONTRIBUTION_FIELD_ID)
+    && ids.has(REFLECTION_FIELD_ID)
+    && feedbackIds.has(REFLECTION_FIELD_ID)
+    && !feedbackIds.has(CONTRIBUTION_FIELD_ID);
+}
+
+export function feedbackFieldLabel(
+  fields: FormField[] | undefined,
+  feedback: CurieFieldFeedback[] | undefined,
+  fieldId: string,
+): string {
+  if (
+    fieldId === REFLECTION_FIELD_ID
+    && isCombinedReflectionFeedback((fields ?? []).map((field) => field.id), feedback)
+  ) {
+    return COMBINED_REFLECTION_LABEL;
+  }
+  return fieldLabel(fields, fieldId);
+}
+
+export function feedbackAnchorFieldIds(
+  fields: FormField[] | undefined,
+  feedback: CurieFieldFeedback[] | undefined,
+  fieldId: string,
+): string[] {
+  if (
+    fieldId === REFLECTION_FIELD_ID
+    && isCombinedReflectionFeedback((fields ?? []).map((field) => field.id), feedback)
+  ) {
+    return [CONTRIBUTION_FIELD_ID, REFLECTION_FIELD_ID];
+  }
+  return [fieldId];
+}
+
 export function isWeightedField(entry: CurieFieldFeedback): boolean {
   return Number(entry.weight) > 0;
 }
@@ -38,13 +92,6 @@ export function orderFieldFeedback(
   });
   byId.forEach((entry) => ordered.push(entry));
   return ordered;
-}
-
-export function fieldLabel(
-  fields: FormField[] | undefined,
-  fieldId: string,
-): string {
-  return fields?.find((field) => field.id === fieldId)?.label ?? fieldId;
 }
 
 export function wholeStarCount(rating: number | null | undefined): number {

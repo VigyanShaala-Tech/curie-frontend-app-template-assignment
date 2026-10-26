@@ -1,6 +1,10 @@
 import React from 'react';
 import type { CurieFieldFeedback, FormField } from '../types';
-import { FIELD_COLOR_LABEL, fieldLabel, isWeightedField } from '../utils/curieReview';
+import {
+  FIELD_COLOR_LABEL,
+  feedbackFieldLabel,
+  isWeightedField,
+} from '../utils/curieReview';
 
 interface Props {
   fields: FormField[];
@@ -25,7 +29,7 @@ export const CurieReviewList: React.FC<Props> = ({ fields, feedback }) => {
           >
             <div className="curie-field-feedback-label">
               <span className="curie-pin-badge" aria-hidden="true">{index + 1}</span>
-              {fieldLabel(fields, entry.field_id)}
+              {feedbackFieldLabel(fields, feedback, entry.field_id)}
               {color && (
                 <span className={`curie-field-verdict-badge ${color}`}>
                   {FIELD_COLOR_LABEL[color]}

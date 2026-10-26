@@ -13,7 +13,11 @@ import {
   type InstructorCuriePresentation,
   type StaffCurieReviewLike,
 } from '../../utils/instructorCurieUi';
-import { wholeStarCount } from '../../utils/curieReview';
+import {
+  COMBINED_REFLECTION_LABEL,
+  isCombinedReflectionFeedback,
+  wholeStarCount,
+} from '../../utils/curieReview';
 
 interface Props {
   presentation: InstructorCuriePresentation;
@@ -48,6 +52,15 @@ export const InstructorCuriePanel: React.FC<Props> = ({
   }
 
   const fieldEntries = review?.field_feedback ?? [];
+  const combinedReflection = isCombinedReflectionFeedback(
+    Object.keys(templateFields),
+    fieldEntries,
+  );
+  const fieldEntryLabel = (fieldId: string) => (
+    combinedReflection && fieldId === 'reflection'
+      ? COMBINED_REFLECTION_LABEL
+      : templateFields[fieldId] ?? fieldId
+  );
   const scoredFields = fieldEntries.filter((entry) => fieldScoreOutOfTen(entry) != null);
   const criterionWise = Object.entries(review?.criterion_wise_scores ?? {});
   const showScoreSummaries = Boolean(presentation.showReadyOutput && review);
@@ -129,7 +142,7 @@ export const InstructorCuriePanel: React.FC<Props> = ({
                   By field
                 </p>
                 {fieldEntries.map((entry) => {
-                  const label = templateFields[entry.field_id] ?? entry.field_id;
+                  const label = fieldEntryLabel(entry.field_id);
                   return (
                     <ScoreRow
                       key={entry.field_id}
@@ -153,7 +166,7 @@ export const InstructorCuriePanel: React.FC<Props> = ({
           {fieldEntries.some((entry) => entry.comment) && (
             <ul className="small mb-0 pl-3" data-testid="curie-field-comments">
               {fieldEntries.filter((entry) => entry.comment).map((entry) => {
-                const label = templateFields[entry.field_id] ?? entry.field_id;
+                const label = fieldEntryLabel(entry.field_id);
                 return (
                   <li key={`comment-${entry.field_id}`}>
                     <strong>{label}:</strong>

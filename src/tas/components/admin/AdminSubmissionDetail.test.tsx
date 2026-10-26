@@ -199,6 +199,48 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     expect(screen.getByTestId('curie-staff-output')).toBeTruthy();
   });
 
+  it('shows the revised final SWOT result as one combined instructor score and comment', async () => {
+    getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
+      status: 'rejected',
+      template_fields: {
+        goal: 'Goal',
+        contribution: 'Contribution to Something Larger',
+        reflection: 'Personal Development Reflection',
+      },
+      curie_review: {
+        ...readyReview,
+        verdict: 'rejected',
+        field_feedback: [
+          ...readyReview.field_feedback,
+          {
+            field_id: 'reflection',
+            comment: 'One final combined comment.',
+            weight: 1,
+            field_score: 7.5,
+          },
+        ],
+      },
+      feedback: {
+        source: 'curie',
+        status: 'rejected',
+        comment: OVERALL,
+        rubrics: [],
+        versions: [],
+      },
+    })));
+    renderDetail();
+
+    await waitFor(() => {
+      expect(screen.getByText('Reflection: Broader Contribution & Personal Development')).toBeTruthy();
+    });
+    expect(screen.getByTestId('curie-field-comments').textContent).toContain(
+      'Reflection: Broader Contribution & Personal Development',
+    );
+    expect(screen.getByText('One final combined comment.')).toBeTruthy();
+    expect(screen.queryByText('Contribution to Something Larger')).toBeNull();
+    expect(screen.queryByText('Personal Development Reflection')).toBeNull();
+  });
+
   it('publishes a held CURIE review unchanged', async () => {
     getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
       curie_review: heldReview,
