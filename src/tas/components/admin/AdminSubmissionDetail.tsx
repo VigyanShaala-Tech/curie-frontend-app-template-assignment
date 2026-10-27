@@ -332,6 +332,22 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     feedbackSource: submission.feedback?.source,
     curieReview: submission.curie_review,
   });
+  const feedbackHistoryVersions = (submission.feedback?.versions ?? []).filter((version: any) => {
+    if (!curiePresentation.showReadyOutput) {
+      return true;
+    }
+    if (version.source === 'human') {
+      return true;
+    }
+    const currentVersion = submission.version_number ?? submission.version;
+    if (version.source === 'curie') {
+      return version.submission_version_number !== currentVersion;
+    }
+    return (
+      version.comment !== submission.curie_review?.overall_feedback
+      || version.status !== submission.feedback?.status
+    );
+  });
 
   const handleFeedbackSubmit = (feedbackStatus: 'approved' | 'rejected') => {
     if (curiePresentation.formLocked) {
@@ -724,12 +740,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
           </div>
         </div>
 
-        {/* Compatibility projection history — not for ready CURIE (already shown once). */}
-        {Boolean(submission.feedback?.versions?.length) && !curiePresentation.showReadyOutput && (
+        {/* Preserve prior feedback while suppressing only the current CURIE projection duplicate. */}
+        {feedbackHistoryVersions.length > 0 && (
           <Card className="shadow-sm mb-4">
             <Card.Header title="Feedback History" />
             <Card.Section>
-              {submission.feedback.versions.map((v: any) => (
+              {feedbackHistoryVersions.map((v: any) => (
                 <div
                   key={v.version_number}
                   className="mb-3 p-3 rounded"

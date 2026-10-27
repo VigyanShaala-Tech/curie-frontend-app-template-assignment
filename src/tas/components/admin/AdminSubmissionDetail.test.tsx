@@ -111,6 +111,8 @@ function readyCurieSubmission(status: 'approved' | 'rejected') {
       }],
       versions: [{
         version_number: 1,
+        submission_version_number: 1,
+        source: 'curie',
         status,
         created: '2026-09-13T00:00:01Z',
         comment: OVERALL,
@@ -294,6 +296,39 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     });
     expect(screen.getAllByText(OVERALL)).toHaveLength(1);
     expect(screen.queryByText('Feedback History')).toBeNull();
+  });
+
+  it('shows earlier Human feedback while hiding the current CURIE projection duplicate', async () => {
+    const submission = readyCurieSubmission('approved') as any;
+    getMock.mockResolvedValue({
+      ...submission,
+      version_number: 4,
+      version: 4,
+      feedback: {
+        ...submission.feedback,
+        versions: [
+          {
+            ...submission.feedback.versions[0],
+            version_number: 3,
+            submission_version_number: 4,
+          },
+          {
+            version_number: 2,
+            submission_version_number: 2,
+            source: 'human',
+            status: 'rejected',
+            created: '2026-09-13T00:00:00Z',
+            comment: '<p>Please revise the evidence.</p>',
+            rubrics: [],
+          },
+        ],
+      },
+    });
+    renderDetail();
+
+    expect(await screen.findByText('Feedback History')).toBeTruthy();
+    expect(screen.getByText('Please revise the evidence.')).toBeTruthy();
+    expect(screen.getAllByText(OVERALL)).toHaveLength(1);
   });
 
   it('does not POST when the instructor cancels the override confirm', async () => {

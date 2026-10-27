@@ -142,7 +142,7 @@ describe('deriveLifecycle', () => {
     });
   });
 
-  it('allows a reopened human-rejected draft to use the legacy resubmit flow', () => {
+  it('allows a reopened human-rejected draft to submit a new CURIE attempt', () => {
     expect(deriveLifecycle({
       submissionStatus: 'draft',
       curieReviewStatus: 'ready',

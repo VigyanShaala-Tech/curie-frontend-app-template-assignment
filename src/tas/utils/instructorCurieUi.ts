@@ -6,11 +6,11 @@ export const INSTRUCTOR_SLOW_PENDING_COPY = 'This is taking longer than usual. M
 
 export const INSTRUCTOR_FAILED_RECOVERY_COPY = 'CURIE could not complete this review. You can grade this attempt now. Saving sets the feedback source to Human.';
 
-export const INSTRUCTOR_OVERRIDE_COPY = 'CURIE already produced a review for this attempt. Saving your grade replaces it and permanently sets the source to Human.';
+export const INSTRUCTOR_OVERRIDE_COPY = 'CURIE already produced a review for this attempt. Saving your grade replaces it and sets this attempt’s source to Human.';
 
-export const INSTRUCTOR_OVERRIDE_CONFIRM = 'Saving this grade replaces CURIE’s review for this attempt and permanently sets the feedback source to Human. Continue?';
+export const INSTRUCTOR_OVERRIDE_CONFIRM = 'Saving this grade replaces CURIE’s review and sets this attempt’s feedback source to Human. A later learner resubmission will return to CURIE when enabled. Continue?';
 
-export const INSTRUCTOR_HUMAN_OWNS_COPY = 'This attempt is owned by instructor grading (source: Human). CURIE cannot reclaim it.';
+export const INSTRUCTOR_HUMAN_OWNS_COPY = 'This attempt is owned by instructor grading (source: Human). A later learner resubmission will return to CURIE when enabled.';
 
 export const INSTRUCTOR_OVERRIDE_ACTION = 'Override CURIE review';
 

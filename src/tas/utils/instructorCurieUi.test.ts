@@ -92,7 +92,7 @@ describe('instructor CURIE presentation', () => {
     expect(human.canOverride).toBe(false);
     expect(human.requireOverrideConfirm).toBe(false);
     expect(human.formLocked).toBe(false);
-    expect(INSTRUCTOR_HUMAN_OWNS_COPY).toMatch(/cannot reclaim/);
+    expect(INSTRUCTOR_HUMAN_OWNS_COPY).toMatch(/later learner resubmission will return to CURIE/);
 
     const curieOwned = presentInstructorCurie({
       submissionStatus: 'approved',
