@@ -492,6 +492,34 @@ describe('CurieReviewScreen', () => {
     );
   });
 
+  it('keeps CURIE review visible while desktop edit and preview share the left panel', async () => {
+    renderScreen({ isMobile: false });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
+
+    expect(screen.getByLabelText('Goal')).toBeTruthy();
+    expect(screen.getByText('Keep reflecting.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeTruthy();
+    expect(screen.queryByText('Live preview')).toBeNull();
+
+    await userEvent.clear(screen.getByLabelText('Goal'));
+    await userEvent.type(screen.getByLabelText('Goal'), 'Desktop draft goal');
+    await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+    expect(screen.queryByLabelText('Goal')).toBeNull();
+    expect(screen.getByText('worksheet-canvas').getAttribute('data-form-data')).toContain(
+      'Desktop draft goal',
+    );
+    expect(screen.getByText('Keep reflecting.')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
+      'Desktop draft goal',
+    );
+    expect(screen.getByText('Keep reflecting.')).toBeTruthy();
+  });
+
   it('clears only the local edit draft after confirmation', async () => {
     renderScreen();
     await userEvent.click(

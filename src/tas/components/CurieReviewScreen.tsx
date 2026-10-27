@@ -280,16 +280,14 @@ export const CurieReviewScreen: React.FC<Props> = ({
             && editAssignmentButton('curie-resubmit-btn curie-header-btn')}
           {editing && (
             <div className="curie-edit-header-actions">
-              {isMobile && (
-                <button
-                  type="button"
-                  className="curie-edit-mode-btn"
-                  onClick={() => setPreviewingDraft((current) => !current)}
-                  disabled={isSaving}
-                >
-                  {previewingDraft ? 'Edit' : 'Preview'}
-                </button>
-              )}
+              <button
+                type="button"
+                className="curie-edit-mode-btn"
+                onClick={() => setPreviewingDraft((current) => !current)}
+                disabled={isSaving}
+              >
+                {previewingDraft ? 'Edit' : 'Preview'}
+              </button>
               {!previewingDraft && (
                 <button
                   type="button"
@@ -393,21 +391,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
         <div
           className={`curie-half-right ${mobileTab === 'review' ? 'mobile-active' : ''}`}
         >
-          {editing && !isMobile ? (
-            <div className="curie-panel assignment-workspace__preview">
-              <h3>Live preview</h3>
-              <TemplateCanvas
-                template={template}
-                readOnly
-                fitToPane
-                formDataOverride={draft}
-              />
-            </div>
-          ) : (
-            <div className="curie-panel curie-review-card">
-              <div className="curie-review-card-content">{reviewBody}</div>
-            </div>
-          )}
+          <div className="curie-panel curie-review-card">
+            <div className="curie-review-card-content">{reviewBody}</div>
+          </div>
         </div>
       </div>
 
