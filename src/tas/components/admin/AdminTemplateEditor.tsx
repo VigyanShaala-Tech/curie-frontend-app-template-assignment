@@ -174,7 +174,10 @@ const FieldRow: React.FC<FieldRowProps> = ({
             <Form.Control
               as="select"
               value={field.fontSize ?? 14}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({ ...field, fontSize: parseInt(e.target.value, 10) })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({
+                ...field,
+                fontSize: parseInt(e.target.value, 10),
+              })}
               size="sm"
             >
               {FONT_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}

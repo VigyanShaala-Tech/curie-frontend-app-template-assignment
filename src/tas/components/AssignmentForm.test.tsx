@@ -28,10 +28,18 @@ const makeTemplate = (fields: FormField[]): Template => ({
 });
 
 const swotFields: FormField[] = [
-  { id: 'strength', label: 'Strengths', type: 'textarea', required: false },
-  { id: 'weakness', label: 'Weaknesses', type: 'textarea', required: false },
-  { id: 'opportunity', label: 'Opportunities', type: 'textarea', required: false },
-  { id: 'threat', label: 'Threats', type: 'textarea', required: false },
+  {
+    id: 'strength', label: 'Strengths', type: 'textarea', required: false,
+  },
+  {
+    id: 'weakness', label: 'Weaknesses', type: 'textarea', required: false,
+  },
+  {
+    id: 'opportunity', label: 'Opportunities', type: 'textarea', required: false,
+  },
+  {
+    id: 'threat', label: 'Threats', type: 'textarea', required: false,
+  },
 ];
 
 describe('AssignmentForm', () => {

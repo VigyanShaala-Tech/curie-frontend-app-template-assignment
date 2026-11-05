@@ -85,7 +85,9 @@ export const InstructorCuriePanel: React.FC<Props> = ({
     ? review.gate_criterion_scores.reduce((sum, item) => sum + item.score, 0)
       / review.gate_criterion_scores.length
     : null;
-  const showScoreSummaries = Boolean(presentation.showReadyOutput && review);
+  const showScoreSummaries = Boolean(
+    presentation.showReadyOutput && review && !overrideEditing,
+  );
 
   return (
     <div className="mb-3" data-testid="instructor-curie-panel">

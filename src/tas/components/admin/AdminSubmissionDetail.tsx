@@ -18,9 +18,11 @@ import { adminSubmissionsApi } from '../../services/api';
 import { useTasStore } from '../../store/tasStore';
 import { usePendingReviewPolling } from '../../hooks/usePendingReviewPolling';
 import type {
+  BlockRubricsResponse,
   RubricCriterion,
   RubricFeedbackEntry,
   StructuredFeedback,
+  WeightedSection,
 } from '../../types';
 import { htmlToPlainText, plainTextToHtml } from '../../utils/commentHtmlAdapter';
 import {
@@ -46,6 +48,33 @@ import {
   INSTRUCTOR_PUBLISH_CONFIRM,
   presentInstructorCurie,
 } from '../../utils/instructorCurieUi';
+import { FieldEvaluationCards } from './FieldEvaluationCards';
+import {
+  buildFieldRubricPayload,
+  draftFromSections,
+  fieldRecordsFromRubrics,
+  isFieldEvaluationRow,
+  orderedTemplateFields,
+  resolveFieldEvaluation,
+  shouldUseFieldEvaluation,
+  validateFieldScoreInputs,
+  type EvaluationDimension,
+  type FieldFeedbackDraft,
+  type FieldScoreDraft,
+  type OptionalFieldEvaluation,
+} from '../../utils/fieldEvaluation';
+import { WeightedRubricGrading } from './WeightedRubricGrading';
+import {
+  allComponents,
+  buildWeightedFeedbackPayload,
+  draftFromCurieReview,
+  draftFromWeightedFeedback,
+  feedbackFromWeightedRows,
+  isWeightedFeedbackRow,
+  validateWeightedScores,
+  type WeightedFeedbackDraft,
+  type WeightedScoreDraft,
+} from '../../utils/weightedRubric';
 
 interface Props {
   submissionId: string;
@@ -119,6 +148,27 @@ const categoryFieldStyle: React.CSSProperties = {
 const categoryScoreInputWidth = 100;
 const categoryControlsGap = 12;
 
+type FeedbackRubricPayload = RubricFeedbackEntry[]
+| ReturnType<typeof buildFieldRubricPayload>
+| ReturnType<typeof buildWeightedFeedbackPayload>;
+
+function weightedSectionsOf(rubrics: BlockRubricsResponse | undefined): WeightedSection[] {
+  return rubrics?.schema_version === 2 ? (rubrics.sections ?? []) : [];
+}
+
+/** Categories whose predefined feedback builds the instructor comment (components for weighted rubrics). */
+function feedbackCategoriesOf(rubrics: BlockRubricsResponse | undefined): Array<{ name: string; feedbacks: string[] }> {
+  const weighted = weightedSectionsOf(rubrics);
+  if (weighted.length > 0) {
+    return allComponents(weighted).map((c) => ({ name: c.name, feedbacks: normalizeFeedbacks(c.feedbacks) }));
+  }
+  return (rubrics?.rubrics ?? []).map((r) => ({ name: r.criterion, feedbacks: normalizeFeedbacks(r.feedbacks) }));
+}
+
+function isLegacyRubricRow(entry: unknown): boolean {
+  return !isFieldEvaluationRow(entry) && !isWeightedFeedbackRow(entry);
+}
+
 export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack }) => {
   const { mfeContext } = useTasStore();
   const usageKey = mfeContext?.usageKey ?? '';
@@ -129,6 +179,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({});
   const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
   const [selectedFeedbacks, setSelectedFeedbacks] = useState<Record<string, string[]>>({});
+  const [dimensionScores, setDimensionScores] = useState<FieldScoreDraft>({});
+  const [sectionFeedback, setSectionFeedback] = useState<FieldFeedbackDraft>({});
+  const [fieldScoreErrors, setFieldScoreErrors] = useState<Record<string, string>>({});
+  const [weightedScores, setWeightedScores] = useState<WeightedScoreDraft>({});
+  const [weightedFeedback, setWeightedFeedback] = useState<WeightedFeedbackDraft>({});
+  const [weightedErrors, setWeightedErrors] = useState<Record<string, string>>({});
   const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [overrideEditing, setOverrideEditing] = useState(false);
   const hydratedSubmissionIdRef = useRef<string | null>(null);
@@ -138,6 +194,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     setScoreInputs({});
     setScoreErrors({});
     setSelectedFeedbacks({});
+    setDimensionScores({});
+    setSectionFeedback({});
+    setFieldScoreErrors({});
+    setWeightedScores({});
+    setWeightedFeedback({});
+    setWeightedErrors({});
     setFeedbackSaved(false);
     setOverrideEditing(false);
     hydratedSubmissionIdRef.current = null;
@@ -175,45 +237,82 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     if (submission.status !== 'submitted' && !overrideEditing) { return; }
     if (hydratedSubmissionIdRef.current === submissionId) { return; }
 
-    const { feedback } = submission;
-    if (!feedback) { return; }
+    if (rubrics === undefined) return;
+
+    const feedback = submission.feedback;
+    const fieldEvaluation = (submission.field_evaluation ?? null) as OptionalFieldEvaluation | null;
+    const ordered = orderedTemplateFields(submission.template_fields);
+    const rubricCriteria: RubricCriterion[] = rubrics?.rubrics ?? [];
+    const weighted = weightedSectionsOf(rubrics);
+    if (
+      overrideEditing
+      && weighted.length > 0
+      && submission.curie_review?.status === 'ready'
+    ) {
+      const draft = draftFromCurieReview(weighted, submission.curie_review);
+      setWeightedScores(draft.scores);
+      setWeightedFeedback(draft.feedback);
+      setWeightedErrors({});
+      hydratedSubmissionIdRef.current = submissionId;
+      return;
+    }
+    if (weighted.length === 0
+      && shouldUseFieldEvaluation(rubricCriteria.length, ordered.length, true, submission.template_type_slug)) {
+      const resolved = resolveFieldEvaluation({
+        templateFields: submission.template_fields,
+        feedbackRubrics: feedback?.rubrics,
+        feedbackComment: typeof feedback?.comment === 'string' ? feedback.comment : '',
+        fieldEvaluation,
+      });
+      const draft = draftFromSections(resolved.sections);
+      setDimensionScores(draft.scores);
+      setSectionFeedback(draft.feedback);
+      if (resolved.overall) {
+        setComment(resolved.overall);
+      }
+      hydratedSubmissionIdRef.current = submissionId;
+      return;
+    }
+
+    if (!feedback) return;
 
     const hasRubrics = Array.isArray(feedback.rubrics) && feedback.rubrics.length > 0;
     const hasComment = typeof feedback.comment === 'string' && feedback.comment.length > 0;
     if (!hasRubrics && !hasComment) { return; }
 
-    // Wait for block rubrics before restoring predefined feedback selections.
-    if (hasComment && rubrics === undefined) { return; }
-
-    const nextScores: Record<string, string> = {};
-    (feedback.rubrics ?? []).forEach((entry: RubricFeedbackEntry) => {
-      const value = entry.score ?? entry.marks;
-      if (value != null && entry.criterion) {
-        nextScores[entry.criterion] = String(value);
+    if (weighted.length > 0) {
+      setWeightedScores(draftFromWeightedFeedback(weighted, feedback.rubrics));
+      setWeightedFeedback(feedbackFromWeightedRows(weighted, feedback.rubrics));
+    } else {
+      const nextScores: Record<string, string> = {};
+      (feedback.rubrics ?? []).forEach((entry: RubricFeedbackEntry) => {
+        if (!isLegacyRubricRow(entry)) return;
+        const value = entry.score ?? entry.marks;
+        if (value != null && entry.criterion) {
+          nextScores[entry.criterion] = String(value);
+        }
+      });
+      if (Object.keys(nextScores).length > 0) {
+        setScoreInputs(nextScores);
       }
-    });
-    if (Object.keys(nextScores).length > 0) {
-      setScoreInputs(nextScores);
     }
 
     if (hasComment) {
       setComment(feedback.comment);
     }
 
-    const rubricList: RubricCriterion[] = rubrics?.rubrics ?? [];
-    if (rubricList.length > 0 && hasComment) {
-      const categoryOrder = rubricList.map((r) => r.criterion);
+    const categories = feedbackCategoriesOf(rubrics);
+    if (categories.length > 0 && hasComment) {
       const parsed = parseInstructorCommentSections(
         htmlToPlainText(feedback.comment),
-        categoryOrder,
+        categories.map((c) => c.name),
       );
       const nextSelected: Record<string, string[]> = {};
-      rubricList.forEach((rubric) => {
-        const options = normalizeFeedbacks(rubric.feedbacks);
-        if (options.length === 0) { return; }
-        const body = parsed.sections[rubric.criterion] ?? '';
+      categories.forEach((category) => {
+        if (category.feedbacks.length === 0) return;
+        const body = parsed.sections[category.name] ?? '';
         const lines = body.split('\n').map((line) => line.trim()).filter(Boolean);
-        nextSelected[rubric.criterion] = options.filter((opt) => lines.includes(opt));
+        nextSelected[category.name] = category.feedbacks.filter((opt) => lines.includes(opt));
       });
       if (Object.keys(nextSelected).length > 0) {
         setSelectedFeedbacks(nextSelected);
@@ -226,7 +325,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   const feedbackMut = useMutation({
     mutationFn: (payload: {
       feedbackStatus: 'approved' | 'rejected';
-      rubricPayload: RubricFeedbackEntry[];
+      rubricPayload: FeedbackRubricPayload;
       total: number;
       structuredFeedback?: StructuredFeedback;
     }) => adminSubmissionsApi.submitFeedback(submissionId, {
@@ -276,7 +375,23 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
   }
 
   const rubricList: RubricCriterion[] = rubrics?.rubrics ?? [];
-  const categoryOrder = rubricList.map((rubric) => rubric.criterion);
+  const weightedSections = weightedSectionsOf(rubrics);
+  const weightedMode = weightedSections.length > 0;
+  const orderedFields = orderedTemplateFields(submission.template_fields);
+  const fieldMode = !weightedMode && shouldUseFieldEvaluation(
+    rubricList.length,
+    orderedFields.length,
+    rubrics !== undefined,
+    submission.template_type_slug,
+  );
+  const feedbackCategories = feedbackCategoriesOf(rubrics);
+  const savedFieldEvaluation = resolveFieldEvaluation({
+    templateFields: submission.template_fields,
+    feedbackRubrics: submission.feedback?.rubrics,
+    feedbackComment: typeof submission.feedback?.comment === 'string' ? submission.feedback.comment : '',
+    fieldEvaluation: (submission.field_evaluation ?? null) as OptionalFieldEvaluation | null,
+  });
+  const categoryOrder = feedbackCategories.map((category) => category.name);
   const parseScoreInput = (rawInput: string): number | null => {
     const trimmed = rawInput.trim();
     if (trimmed === '') {
@@ -347,7 +462,8 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     curieReview: submission.curie_review,
   });
   const activeStructuredFeedback = (
-    submission.feedback?.source === 'human'
+    !weightedMode
+    && submission.feedback?.source === 'human'
     && submission.feedback?.structured_feedback?.field_feedback?.length > 0
       ? submission.feedback.structured_feedback
       : null
@@ -394,6 +510,39 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     if (curiePresentation.formLocked) {
       return;
     }
+    if (weightedMode) {
+      const nextErrors = validateWeightedScores(weightedSections, weightedScores);
+      setWeightedErrors(nextErrors);
+      if (Object.keys(nextErrors).length > 0) {
+        return;
+      }
+      if (curiePresentation.requireOverrideConfirm && !window.confirm(INSTRUCTOR_OVERRIDE_CONFIRM)) {
+        return;
+      }
+      feedbackMut.mutate({
+        feedbackStatus,
+        rubricPayload: buildWeightedFeedbackPayload(
+          weightedSections,
+          weightedScores,
+          weightedFeedback,
+        ),
+        total: 0,
+      });
+      return;
+    }
+    if (fieldMode) {
+      const nextErrors = validateFieldScoreInputs(orderedFields, dimensionScores);
+      setFieldScoreErrors(nextErrors);
+      if (Object.keys(nextErrors).length > 0) {
+        return;
+      }
+      feedbackMut.mutate({
+        feedbackStatus,
+        rubricPayload: buildFieldRubricPayload(orderedFields, dimensionScores, sectionFeedback),
+        total: 0,
+      });
+      return;
+    }
     const { hasErrors, rubricPayload, total } = validateScores();
     if (hasErrors) {
       return;
@@ -417,12 +566,36 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
       structuredFeedback,
     });
   };
+  const renderPredefinedFeedback = (categoryName: string, feedbackOptions: string[], controlId: string) => (
+    <PredefinedFeedbackMultiSelect
+      controlId={controlId}
+      options={feedbackOptions}
+      selected={selectedFeedbacks[categoryName] ?? []}
+      onChange={(nextSelected) => {
+        setSelectedFeedbacks((prev) => ({
+          ...prev,
+          [categoryName]: nextSelected,
+        }));
+        setComment((prev) => plainTextToHtml(
+          updateCategorySection(
+            htmlToPlainText(prev),
+            categoryName,
+            categoryOrder,
+            nextSelected,
+            feedbackOptions,
+          ),
+        ));
+      }}
+      className="flex-grow-1"
+    />
+  );
   const versionHistory: any[] = submission.version_history ?? [];
   const isSubmitted = submission.status === 'submitted';
   const showStructuredOverride = Boolean(
     overrideEditing
     && curiePresentation.showReadyOutput
-    && submission.curie_review,
+    && submission.curie_review
+    && !weightedMode,
   );
   const showGradingForm = !showStructuredOverride && (
     (isSubmitted && !curiePresentation.formLocked && !curiePresentation.canOverride)
@@ -521,7 +694,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                     variant="tertiary"
                     size="sm"
                     className="mb-3"
-                    onClick={() => setOverrideEditing(true)}
+                    onClick={() => {
+                      if (weightedMode) {
+                        hydratedSubmissionIdRef.current = null;
+                      }
+                      setOverrideEditing(true);
+                    }}
                   >
                     {INSTRUCTOR_OVERRIDE_ACTION}
                   </Button>
@@ -545,14 +723,42 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   />
                 )}
                 {/* Past feedback for human-owned / non-CURIE finalized reviews */}
-                {showPreviousProjection && (
+                {showPreviousProjection && fieldMode && (
+                  <div>
+                    <Badge variant={FEEDBACK_BADGE[submission.feedback.status] ?? 'secondary'} className="mb-3">
+                      {formatFeedbackStatusLabel(submission.feedback.status)}
+                    </Badge>
+                    <FieldEvaluationCards sections={savedFieldEvaluation.sections} readOnly />
+                    <Form.Group className="mb-0">
+                      <Form.Label className="small font-weight-bold">Overall feedback</Form.Label>
+                      {submission.feedback.comment ? (
+                        <InstructorCommentHtml comment={submission.feedback.comment} className="small mb-0" />
+                      ) : (
+                        <p className="text-muted small mb-0">No overall feedback.</p>
+                      )}
+                    </Form.Group>
+                  </div>
+                )}
+
+                {showPreviousProjection && !fieldMode && (
                   <div>
                     <Badge variant={FEEDBACK_BADGE[submission.feedback.status] ?? 'secondary'} className="mb-2">
                       {formatFeedbackStatusLabel(submission.feedback.status)}
                     </Badge>
-                    {submission.feedback.rubrics?.length > 0 && (
+                    {weightedMode && (
+                      <div className="mt-2">
+                        <WeightedRubricGrading
+                          sections={weightedSections}
+                          templateFields={submission.template_fields}
+                          scores={draftFromWeightedFeedback(weightedSections, submission.feedback.rubrics)}
+                          feedback={feedbackFromWeightedRows(weightedSections, submission.feedback.rubrics)}
+                          readOnly
+                        />
+                      </div>
+                    )}
+                    {!weightedMode && submission.feedback.rubrics?.some(isLegacyRubricRow) && (
                       <div className="mt-2 mb-2">
-                        {submission.feedback.rubrics.map((r: RubricFeedbackEntry) => (
+                        {submission.feedback.rubrics.filter(isLegacyRubricRow).map((r: RubricFeedbackEntry) => (
                           <div key={r.criterion} className="d-flex justify-content-between small py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
                             <span>{r.criterion}</span>
                             <span>
@@ -592,7 +798,35 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                     </div>
                   ) : (
                     <>
-                      {rubricList.length > 0 && (
+                      {weightedMode && (
+                        <WeightedRubricGrading
+                          sections={weightedSections}
+                          templateFields={submission.template_fields}
+                          scores={weightedScores}
+                          feedback={weightedFeedback}
+                          errors={weightedErrors}
+                          onScoreChange={(componentId, criterionId, value) => {
+                            setWeightedScores((prev) => ({
+                              ...prev,
+                              [componentId]: { ...prev[componentId], [criterionId]: value },
+                            }));
+                          }}
+                          onFeedbackChange={(componentId, value) => {
+                            setWeightedFeedback((prev) => ({ ...prev, [componentId]: value }));
+                          }}
+                          renderComponentExtras={(component) => {
+                            const feedbackOptions = normalizeFeedbacks(component.feedbacks);
+                            if (feedbackOptions.length === 0) return null;
+                            return renderPredefinedFeedback(
+                              component.name,
+                              feedbackOptions,
+                              `${usageKey}-${component.id}-feedback`,
+                            );
+                          }}
+                        />
+                      )}
+
+                      {!fieldMode && !weightedMode && rubricList.length > 0 && (
                         <div className="mb-4">
                           {rubricList.map((rubric, idx) => {
                             const categoryName = rubric.criterion || `Category ${idx + 1}`;
@@ -644,28 +878,10 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                                     className="d-flex align-items-center"
                                     style={{ gap: `${categoryControlsGap}px` }}
                                   >
-                                    {feedbackOptions.length > 0 && (
-                                      <PredefinedFeedbackMultiSelect
-                                        controlId={`${categoryKey}-feedback`}
-                                        options={feedbackOptions}
-                                        selected={selectedFeedbacks[categoryName] ?? []}
-                                        onChange={(nextSelected) => {
-                                          setSelectedFeedbacks((prev) => ({
-                                            ...prev,
-                                            [categoryName]: nextSelected,
-                                          }));
-                                          setComment((prev) => plainTextToHtml(
-                                            updateCategorySection(
-                                              htmlToPlainText(prev),
-                                              categoryName,
-                                              categoryOrder,
-                                              nextSelected,
-                                              feedbackOptions,
-                                            ),
-                                          ));
-                                        }}
-                                        className="flex-grow-1"
-                                      />
+                                    {feedbackOptions.length > 0 && renderPredefinedFeedback(
+                                      categoryName,
+                                      feedbackOptions,
+                                      `${categoryKey}-feedback`,
                                     )}
                                     <div
                                       style={{
@@ -740,6 +956,44 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                         </div>
                       )}
 
+                      {fieldMode && (
+                        <>
+                          <FieldEvaluationCards
+                            sections={savedFieldEvaluation.sections}
+                            scores={dimensionScores}
+                            feedback={sectionFeedback}
+                            errors={fieldScoreErrors}
+                            onScoreChange={(fieldId: string, dimension: EvaluationDimension, value: string) => {
+                              setDimensionScores((prev) => ({
+                                ...prev,
+                                [fieldId]: { ...prev[fieldId], [dimension]: value },
+                              }));
+                            }}
+                            onFeedbackChange={(fieldId: string, value: string) => {
+                              setSectionFeedback((prev) => ({ ...prev, [fieldId]: value }));
+                            }}
+                          />
+                          <Form.Group className="mb-3">
+                            <Form.Label className="small font-weight-bold">Overall feedback</Form.Label>
+                            <Form.Control
+                              as="textarea"
+                              value={comment}
+                              aria-label="Overall feedback"
+                              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                setComment(event.target.value);
+                              }}
+                              style={{ width: '100%', minHeight: '7.5rem', whiteSpace: 'pre-wrap' }}
+                            />
+                            {comment.length >= COMMENT_SOFT_WARN_LENGTH && (
+                              <div className="small text-warning mt-1">
+                                This comment is very long (50,000+ characters). It will still be saved.
+                              </div>
+                            )}
+                          </Form.Group>
+                        </>
+                      )}
+
+                      {!fieldMode && (
                       <Form.Group className="mb-3 mt-1">
                         <div className="d-flex align-items-center mb-2">
                           <Form.Label className="small font-weight-bold mb-0 mr-1">
@@ -778,6 +1032,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                           </div>
                         )}
                       </Form.Group>
+                      )}
 
                       {/* Approve / Reject buttons */}
                       <div className="d-flex" style={{ gap: '0.5rem' }}>
@@ -830,9 +1085,28 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                       v{v.version_number}{v.created ? ` · ${new Date(v.created).toLocaleString()}` : ''}
                     </small>
                   </div>
-                  {v.rubrics?.length > 0 && (
+                  {fieldRecordsFromRubrics(v.rubrics).length > 0 && (
+                    <FieldEvaluationCards
+                      sections={resolveFieldEvaluation({
+                        templateFields: submission.template_fields,
+                        feedbackRubrics: v.rubrics,
+                        feedbackComment: '',
+                      }).sections}
+                      readOnly
+                    />
+                  )}
+                  {weightedMode && (v.rubrics ?? []).some(isWeightedFeedbackRow) && (
+                    <WeightedRubricGrading
+                      sections={weightedSections}
+                      templateFields={submission.template_fields}
+                      scores={draftFromWeightedFeedback(weightedSections, v.rubrics)}
+                      feedback={feedbackFromWeightedRows(weightedSections, v.rubrics)}
+                      readOnly
+                    />
+                  )}
+                  {(v.rubrics ?? []).some(isLegacyRubricRow) && (
                     <div className="mt-1 mb-2">
-                      {v.rubrics.map((r: RubricFeedbackEntry) => (
+                      {(v.rubrics as RubricFeedbackEntry[]).filter(isLegacyRubricRow).map((r) => (
                         <div key={`${v.version_number}-${r.criterion}`} className="d-flex justify-content-between small py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
                           <span>{r.criterion}</span>
                           <span>
