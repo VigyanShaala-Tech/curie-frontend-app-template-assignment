@@ -14,24 +14,25 @@ import { CuriePinOverlay } from './CuriePinOverlay';
 import { CurieReviewList } from './CurieReviewList';
 import { CurieReviewPending } from './CurieReviewPending';
 import { CurieStarRating } from './CurieStarRating';
+import { AssignmentForm } from './AssignmentForm';
+import { ConfirmEditModal } from './ConfirmEditModal';
 import { PdfPoller } from './PdfPoller';
-import { getActiveFields } from '../utils/activeFields';
-import { applyTextCandidate } from '../utils/clampTextToField';
-import { resolveFieldLayout } from '../utils/fieldLayout';
+import { areRequiredFieldsComplete } from '../utils/activeFields';
 import {
+  AWAITING_APPROVAL_LABEL,
   CAP_REACHED_MESSAGE,
   HISTORICAL_FAILED_COPY,
+  INSTRUCTOR_APPROVED_NOTE,
+  INSTRUCTOR_MODIFIED_NOTE,
   learnerVerdictLabel,
   orderFieldFeedback,
 } from '../utils/curieReview';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
-import type {
-  FormField, LearnerCurieReview, Submission, Template,
-} from '../types';
+import type { LearnerCurieReview, Submission, Template } from '../types';
 
 interface Props {
   template: Template;
-  displayState: Extract<DisplayState, 'pending' | 'live_failed' | 'curie_accepted' | 'curie_rejected'>;
+  displayState: Extract<DisplayState, 'pending' | 'awaiting_approval' | 'live_failed' | 'curie_accepted' | 'curie_rejected'>;
   review: LearnerCurieReview | null;
   title: string;
   submittedAt?: string | null;
@@ -72,11 +73,13 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const [editing, setEditing] = useState(false);
   const [previewingDraft, setPreviewingDraft] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(formData);
-  const [capacityFull, setCapacityFull] = useState<Record<string, boolean>>({});
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
 
-  const pending = displayState === 'pending';
+  // Awaiting approval behaves like pending for the learner: no content, no reattempt.
+  const awaitingApproval = displayState === 'awaiting_approval';
+  const pending = displayState === 'pending' || awaitingApproval;
   const liveFailed = displayState === 'live_failed';
   const accepted = displayState === 'curie_accepted';
   const rejected = displayState === 'curie_rejected';
@@ -86,6 +89,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
       setEditing(false);
       setPreviewingDraft(false);
       setClearConfirmOpen(false);
+      setEditConfirmOpen(false);
     }
   }, [pending, canReattempt, atMaxAttempts, historical, displayState, review?.submission_version_number]);
 
@@ -104,7 +108,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   );
   const showPins = !pending && !liveFailed && !editing && orderedFeedback.length > 0;
   const showStars = Boolean(review?.star_rating != null && orderedFeedback.length > 0);
-  const allowReattempt = !historical && canReattempt && !atMaxAttempts;
+  const allowReattempt = !historical && !pending && canReattempt && !atMaxAttempts;
   const showCap = !historical && (rejected || liveFailed) && atMaxAttempts;
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
 
@@ -112,50 +116,23 @@ export const CurieReviewScreen: React.FC<Props> = ({
     review?.status,
     review?.verdict ?? (accepted ? 'accepted' : 'rejected'),
   );
-  if (pending) {
+  if (awaitingApproval) {
+    verdictLabel = AWAITING_APPROVAL_LABEL;
+  } else if (pending) {
     verdictLabel = 'Pending Evaluation';
   } else if (liveFailed) {
     verdictLabel = 'Review Unavailable';
   }
-  let verdictClass = '';
+  let verdictClass = awaitingApproval ? 'awaiting' : '';
   if (!pending && !liveFailed) {
     verdictClass = accepted || review?.verdict === 'accepted' ? 'accepted' : 'rejected';
   }
 
-  const activeFields = getActiveFields(template);
-  const fieldLayouts = useMemo(() => {
-    const imageW = template.image_width || 794;
-    const imageH = template.image_height || 1123;
-    const layouts: Record<string, ReturnType<typeof resolveFieldLayout>> = {};
-    activeFields.forEach((field: FormField) => {
-      if (field.type === 'select' || field.type === 'date' || field.type === 'number'
-        || field.type === 'checkbox' || field.type === 'radio') {
-        return;
-      }
-      const pos = template.field_positions[field.id];
-      if (!pos) { return; }
-      layouts[field.id] = resolveFieldLayout(field, pos, imageW, imageH);
-    });
-    return layouts;
-  }, [activeFields, template.field_positions, template.image_height, template.image_width]);
-
-  const updateDraftField = (fieldId: string, candidate: string) => {
-    setDraft((prev) => {
-      const layout = fieldLayouts[fieldId];
-      if (!layout) {
-        return { ...prev, [fieldId]: candidate };
-      }
-      const result = applyTextCandidate(prev[fieldId] ?? '', candidate, layout);
-      setCapacityFull((map) => ({ ...map, [fieldId]: result.capacityFull }));
-      return { ...prev, [fieldId]: result.value };
-    });
-  };
-
   const openEdit = () => {
     setDraft({ ...formData });
-    setCapacityFull({});
     setEditing(true);
     setPreviewingDraft(false);
+    setEditConfirmOpen(false);
     setMobileTab('worksheet');
   };
 
@@ -163,22 +140,31 @@ export const CurieReviewScreen: React.FC<Props> = ({
     setEditing(false);
     setPreviewingDraft(false);
     setClearConfirmOpen(false);
+    setEditConfirmOpen(false);
   };
 
   const clearDraft = () => {
     setDraft({});
-    setCapacityFull({});
     setClearConfirmOpen(false);
   };
 
   const confirmOpenEdit = () => {
-    if (window.confirm('Editing will let you revise your answers and resubmit for a new review. Continue?')) {
-      openEdit();
-    }
+    setEditConfirmOpen(true);
   };
 
+  const requiredComplete = areRequiredFieldsComplete(template, draft);
+
+  let sourceNote: string | null = null;
+  if (review?.status === 'approved') {
+    sourceNote = review.feedback_source === 'human' || review.approval_modified
+      ? INSTRUCTOR_MODIFIED_NOTE
+      : INSTRUCTOR_APPROVED_NOTE;
+  }
+
   let reviewBody: React.ReactNode;
-  if (pending) {
+  if (awaitingApproval) {
+    reviewBody = <CurieReviewPending variant="awaiting_approval" />;
+  } else if (pending) {
     reviewBody = <CurieReviewPending variant={isSlowPending ? 'slow' : 'pending'} />;
   } else if (liveFailed && historical) {
     reviewBody = (
@@ -193,6 +179,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     reviewBody = (
       <div>
         <h3 className="curie-review-heading">Curie Review</h3>
+        {sourceNote && <p className="curie-source-note">{sourceNote}</p>}
         {showStars && <CurieStarRating rating={review?.star_rating} />}
         <div className="curie-section-title">Overall Feedback</div>
         <div className="curie-overall-feedback">{review?.overall_feedback || 'No overall feedback.'}</div>
@@ -226,9 +213,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
         </button>
         <button
           type="button"
-          className="curie-edit-submit"
+          className={`curie-edit-submit${requiredComplete ? '' : ' curie-edit-submit--disabled'}`}
           onClick={() => onRequestSubmit(draft)}
-          disabled={isSaving}
+          disabled={isSaving || !requiredComplete}
         >
           {isSaving ? 'Submitting…' : 'Submit'}
         </button>
@@ -324,21 +311,13 @@ export const CurieReviewScreen: React.FC<Props> = ({
                     onRequestSubmit(draft);
                   }}
                 >
-                  {activeFields.map((field) => (
-                    <div key={field.id} className="curie-edit-form-field">
-                      <label htmlFor={`curie-reattempt-${field.id}`}>{field.label}</label>
-                      <textarea
-                        id={`curie-reattempt-${field.id}`}
-                        value={draft[field.id] ?? ''}
-                        onChange={(event) => updateDraftField(field.id, event.target.value)}
-                      />
-                      {capacityFull[field.id] && (
-                        <p className="curie-capacity-warning" role="status">
-                          This field has reached its maximum capacity.
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  <AssignmentForm
+                    template={template}
+                    values={draft}
+                    onChange={(fieldId, value) => setDraft((current) => ({ ...current, [fieldId]: value }))}
+                    isMobile={isMobile}
+                    mode="overview"
+                  />
                 </form>
               ) : (
                 <TemplateCanvas
@@ -378,6 +357,14 @@ export const CurieReviewScreen: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmEditModal
+        isOpen={editConfirmOpen}
+        isSaving={isSaving}
+        onClose={() => setEditConfirmOpen(false)}
+        onCancel={() => setEditConfirmOpen(false)}
+        onConfirmEdit={openEdit}
+      />
 
       {editing && (
         <ModalDialog

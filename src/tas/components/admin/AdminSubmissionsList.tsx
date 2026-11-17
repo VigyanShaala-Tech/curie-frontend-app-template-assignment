@@ -39,6 +39,12 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: 'danger',
 };
 
+/** Approval-workflow CURIE states get a badge so instructors can spot work waiting on them. */
+const QUEUE_CURIE_BADGE: Record<string, string> = {
+  ready_for_approval: 'warning',
+  approved: 'success',
+};
+
 const STATUS_TABS: { key: StatusTabKey; label: string }[] = [
   { key: 'submitted', label: 'Under Review' },
   { key: 'approved', label: 'Accepted' },
@@ -566,7 +572,13 @@ export const AdminSubmissionsList: React.FC<Props> = ({ onView }) => {
                             </Badge>
                           </td>
                           <td style={tdStyle}>
-                            <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
+                            {QUEUE_CURIE_BADGE[sub.curie_review_status] ? (
+                              <Badge variant={QUEUE_CURIE_BADGE[sub.curie_review_status]}>
+                                {queueCurieStatusLabel(sub.curie_review_status)}
+                              </Badge>
+                            ) : (
+                              <span className="small">{queueCurieStatusLabel(sub.curie_review_status)}</span>
+                            )}
                             {sub.instructor_form_locked && (
                             <div className="small text-muted">Locked</div>
                             )}

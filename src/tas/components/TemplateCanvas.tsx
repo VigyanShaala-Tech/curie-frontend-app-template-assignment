@@ -115,7 +115,7 @@ export const TemplateCanvas: React.FC<Props> = ({
         minScale={0.2}
         maxScale={5}
         limitToBounds={false}
-        centerOnInit={!fitToPane}
+        centerOnInit
         wheel={{ disabled: true }}
         pinch={{ disabled: !isMobile }}
         onTransformed={(ref) => {
@@ -127,7 +127,7 @@ export const TemplateCanvas: React.FC<Props> = ({
         }}
       >
         {({
-          zoomIn, zoomOut, centerView, setTransform,
+          zoomIn, zoomOut, centerView,
         }) => (
           <>
             {/* Zoom controls */}
@@ -146,9 +146,7 @@ export const TemplateCanvas: React.FC<Props> = ({
                 { label: '−', action: () => zoomOut() },
                 {
                   label: '↺',
-                  action: () => (fitToPane && paneFitScale != null
-                    ? setTransform(0, 0, paneFitScale)
-                    : centerView(shouldFitPane ? (paneFitScale ?? 1) : 1)),
+                  action: () => centerView(shouldFitPane ? (paneFitScale ?? 1) : 1),
                 },
               ].map(({ label, action }) => (
                 <button

@@ -1,8 +1,13 @@
 import React from 'react';
-import { LIVE_FAILED_COPY, PENDING_COPY, SLOW_PENDING_COPY } from '../utils/curieReview';
+import {
+  AWAITING_APPROVAL_COPY,
+  LIVE_FAILED_COPY,
+  PENDING_COPY,
+  SLOW_PENDING_COPY,
+} from '../utils/curieReview';
 
 interface Props {
-  variant: 'pending' | 'slow' | 'live_failed';
+  variant: 'pending' | 'slow' | 'live_failed' | 'awaiting_approval';
 }
 
 export const CurieReviewPending: React.FC<Props> = ({ variant }) => {
@@ -11,6 +16,15 @@ export const CurieReviewPending: React.FC<Props> = ({ variant }) => {
       <div>
         <h3 className="curie-review-heading">Curie Review</h3>
         <p className="curie-pending-note">{LIVE_FAILED_COPY}</p>
+      </div>
+    );
+  }
+
+  if (variant === 'awaiting_approval') {
+    return (
+      <div>
+        <h3 className="curie-review-heading">Curie Review</h3>
+        <p className="curie-pending-note" role="status">{AWAITING_APPROVAL_COPY}</p>
       </div>
     );
   }

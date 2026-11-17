@@ -15,3 +15,13 @@ export function isFieldEmpty(
 ): boolean {
   return !(formData[fieldId] ?? '').trim();
 }
+
+/** True when every required active field has a non-empty response. */
+export function areRequiredFieldsComplete(
+  template: Template | null | undefined,
+  formData: Record<string, string>,
+): boolean {
+  const required = getActiveFields(template).filter((field) => field.required);
+  if (required.length === 0) return true;
+  return required.every((field) => !isFieldEmpty(formData, field.id));
+}

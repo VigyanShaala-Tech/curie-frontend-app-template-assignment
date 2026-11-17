@@ -103,8 +103,61 @@ describe('instructor CURIE presentation', () => {
     expect(curieOwned.humanOwns).toBe(false);
   });
 
+  it('presents a ready_for_approval review as awaiting approval with CURIE source', () => {
+    const awaiting = presentInstructorCurie({
+      submissionStatus: 'submitted',
+      feedbackSource: 'human',
+      curieReview: { status: 'ready_for_approval', verdict: 'accepted', instructor_form_locked: false },
+    });
+    expect(awaiting.awaitingApproval).toBe(true);
+    expect(awaiting.approved).toBe(false);
+    expect(awaiting.showReadyOutput).toBe(true);
+    expect(awaiting.humanOwns).toBe(false);
+    expect(awaiting.formLocked).toBe(false);
+    expect(awaiting.canOverride).toBe(false);
+    expect(awaiting.reviewStatusLabel).toBe('Awaiting Approval');
+    expect(awaiting.sourceLabel).toBe('CURIE');
+  });
+
+  it.each([
+    ['curie', 'CURIE'],
+    ['human', 'Human'],
+  ] as const)('presents an approved review released as %s', (publishedSource, label) => {
+    const approved = presentInstructorCurie({
+      submissionStatus: 'approved',
+      feedbackSource: publishedSource,
+      curieReview: {
+        status: 'approved',
+        verdict: 'accepted',
+        approval: { published_source: publishedSource, approved_by: 'staff' },
+      },
+    });
+    expect(approved.approved).toBe(true);
+    expect(approved.awaitingApproval).toBe(false);
+    expect(approved.humanOwns).toBe(false);
+    expect(approved.canOverride).toBe(false);
+    expect(approved.showReadyOutput).toBe(true);
+    expect(approved.reviewStatusLabel).toBe('Approved');
+    expect(approved.sourceLabel).toBe(label);
+  });
+
+  it('never offers withdrawal on approval-workflow rows', () => {
+    expect(canWithdrawQueueRow({
+      feedback_status: 'approved',
+      feedback_source: 'human',
+      curie_review_status: 'approved',
+    })).toBe(false);
+    expect(canWithdrawQueueRow({
+      feedback_status: 'rejected',
+      feedback_source: 'human',
+      curie_review_status: 'ready_for_approval',
+    })).toBe(false);
+  });
+
   it('labels queue status and source without inventing values', () => {
     expect(queueCurieStatusLabel('pending_evaluation')).toBe('Pending');
+    expect(queueCurieStatusLabel('ready_for_approval')).toBe('Awaiting Approval');
+    expect(queueCurieStatusLabel('approved')).toBe('Approved');
     expect(queueCurieStatusLabel('ready')).toBe('Ready');
     expect(queueCurieStatusLabel('failed')).toBe('Failed');
     expect(queueCurieStatusLabel(null)).toBe('—');

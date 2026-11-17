@@ -1,7 +1,9 @@
 import React from 'react';
 import { Badge } from '@openedx/paragon';
 import {
+  type CurieApprovalInfo,
   GATE_OVERALL_LABEL,
+  INSTRUCTOR_AWAITING_APPROVAL_COPY,
   INSTRUCTOR_FAILED_RECOVERY_COPY,
   INSTRUCTOR_HUMAN_OWNS_COPY,
   INSTRUCTOR_OVERRIDE_COPY,
@@ -31,9 +33,18 @@ const ScoreRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+function approvalSummary(approval: CurieApprovalInfo): string {
+  const who = approval.approved_by ? ` by ${approval.approved_by}` : '';
+  const when = approval.approved_at ? ` on ${new Date(approval.approved_at).toLocaleString()}` : '';
+  const how = approval.published_source === 'human'
+    ? 'Released with instructor edits (source: Human)'
+    : 'Released unchanged (source: CURIE)';
+  return `Approved${who}${when}. ${how}.`;
+}
+
 export const InstructorCuriePanel: React.FC<Props> = ({
   presentation,
-  review,
+  review: rawReview,
   templateFields = {},
   overrideEditing = false,
 }) => {
@@ -45,6 +56,12 @@ export const InstructorCuriePanel: React.FC<Props> = ({
   ) {
     return null;
   }
+
+  // After approval, show what the student actually received.
+  const approval = presentation.approved ? rawReview?.approval ?? null : null;
+  const review: StaffCurieReviewLike | null | undefined = approval
+    ? { ...rawReview, ...approval }
+    : rawReview;
 
   const fieldEntries = review?.field_feedback ?? [];
   const scoredFields = fieldEntries.filter((entry) => fieldScoreOutOfTen(entry) != null);
@@ -71,6 +88,20 @@ export const InstructorCuriePanel: React.FC<Props> = ({
       {presentation.humanOwns && (
         <div className="alert alert-secondary small mb-3" role="status">
           {INSTRUCTOR_HUMAN_OWNS_COPY}
+        </div>
+      )}
+
+      {presentation.awaitingApproval && (
+        <div className="alert alert-warning small mb-3" role="status" data-testid="curie-awaiting-approval">
+          <strong>CURIE Ready.</strong>
+          {' '}
+          {INSTRUCTOR_AWAITING_APPROVAL_COPY}
+        </div>
+      )}
+
+      {approval && (
+        <div className="alert alert-success small mb-3" role="status" data-testid="curie-approval-info">
+          {approvalSummary(approval)}
         </div>
       )}
 

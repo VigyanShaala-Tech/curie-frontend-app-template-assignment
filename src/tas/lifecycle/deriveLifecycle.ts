@@ -1,14 +1,17 @@
 import type { CurieReviewStatus, FeedbackSource, SubmissionStatus } from '../types';
 import {
+  CURIE_STATUS_APPROVED,
   CURIE_STATUS_FAILED,
   CURIE_STATUS_PENDING,
   CURIE_STATUS_READY,
+  CURIE_STATUS_READY_FOR_APPROVAL,
 } from './constants';
 
 export type DisplayState =
   | 'legacy'
   | 'draft'
   | 'pending'
+  | 'awaiting_approval'
   | 'live_failed'
   | 'cold_failed'
   | 'curie_accepted'
@@ -95,8 +98,39 @@ export function deriveLifecycle(input: LifecycleInput): LifecycleCapabilities {
   const pending = review === CURIE_STATUS_PENDING;
   const failed = review === CURIE_STATUS_FAILED;
   const ready = review === CURIE_STATUS_READY;
+  const approved = review === CURIE_STATUS_APPROVED;
   const instructorFormLocked = pending;
   const isSlowPending = pending && Boolean(input.isSlowPending);
+
+  if (review === CURIE_STATUS_READY_FOR_APPROVAL) {
+    // CURIE finished; nothing is released until an instructor approves.
+    return emptyLifecycle({
+      displayState: 'awaiting_approval',
+      hasCurieReview: true,
+      isCanvasReadOnly: true,
+      shouldPoll: true,
+      atMaxAttempts: atMax,
+    });
+  }
+
+  // Instructor-approved reviews stay in the CURIE lifecycle even when edited (source=human).
+  if (approved && status === 'approved') {
+    return emptyLifecycle({
+      displayState: 'curie_accepted',
+      hasCurieReview: true,
+      isCanvasReadOnly: true,
+      atMaxAttempts: atMax,
+    });
+  }
+  if (approved && status === 'rejected') {
+    return emptyLifecycle({
+      displayState: 'curie_rejected',
+      hasCurieReview: true,
+      canReattempt: !atMax,
+      isCanvasReadOnly: true,
+      atMaxAttempts: atMax,
+    });
+  }
 
   if (humanOwns) {
     const rejected = status === 'rejected';

@@ -26,8 +26,34 @@ export interface StaffFieldEntry {
   criterion_scores?: Array<{ criterion: string; score: number; max_score?: number }>;
 }
 
+export const INSTRUCTOR_AWAITING_APPROVAL_COPY = 'CURIE has finished reviewing this attempt. The student cannot see this feedback until you approve it unchanged or edit and approve it.';
+
+export const APPROVE_ACTION = 'Approve CURIE Feedback';
+
+export const EDIT_AND_APPROVE_ACTION = 'Edit & Approve';
+
+export const APPROVE_CONFIRM_COPY = 'Release CURIE’s feedback to the student exactly as shown? The submission status will be set from CURIE’s verdict. This cannot be undone.';
+
+export const EDIT_APPROVE_CONFIRM_COPY = 'Release your edited feedback to the student? The feedback source will be recorded as Human and the submission status will be set from the edited scores. This cannot be undone.';
+
+export interface CurieApprovalInfo {
+  approved_by?: string | null;
+  approved_at?: string | null;
+  approval_modified?: boolean;
+  published_source?: FeedbackSource | string | null;
+  verdict?: string | null;
+  overall_feedback?: string;
+  field_feedback?: StaffFieldEntry[];
+  star_rating?: number | null;
+  gate_score?: number | null;
+  gate_criterion_scores?: Array<{ criterion: string; score: number; max_score?: number }>;
+  criterion_wise_scores?: Record<string, number>;
+}
+
 export interface StaffCurieReviewLike {
   status?: CurieReviewStatus | string | null;
+  trigger_id?: string;
+  submission_version_number?: number;
   verdict?: string | null;
   overall_feedback?: string;
   field_feedback?: StaffFieldEntry[];
@@ -38,6 +64,8 @@ export interface StaffCurieReviewLike {
   gate_score?: number | null;
   gate_criterion_scores?: Array<{ criterion: string; score: number; max_score?: number }>;
   criterion_wise_scores?: Record<string, number>;
+  awaiting_approval?: boolean;
+  approval?: CurieApprovalInfo | null;
 }
 
 export interface InstructorCuriePresentation {
@@ -50,12 +78,18 @@ export interface InstructorCuriePresentation {
   requireOverrideConfirm: boolean;
   humanOwns: boolean;
   isSlowPending: boolean;
+  /** CURIE output is stored and waiting for an instructor to release it. */
+  awaitingApproval: boolean;
+  /** Released through Approve / Edit & Approve; further approvals are blocked. */
+  approved: boolean;
 }
 
 export function queueCurieStatusLabel(
   status: CurieReviewStatus | string | null | undefined,
 ): string {
   if (status === 'pending_evaluation') { return 'Pending'; }
+  if (status === 'ready_for_approval') { return 'Awaiting Approval'; }
+  if (status === 'approved') { return 'Approved'; }
   if (status === 'ready') { return 'Ready'; }
   if (status === 'failed') { return 'Failed'; }
   return '—';
@@ -72,7 +106,11 @@ export function queueSourceLabel(
 export function canWithdrawQueueRow(row: {
   feedback_status?: string | null;
   feedback_source?: string | null;
+  curie_review_status?: string | null;
 }): boolean {
+  if (row.curie_review_status === 'approved' || row.curie_review_status === 'ready_for_approval') {
+    return false;
+  }
   return FINALIZED_FEEDBACK.has(row.feedback_status ?? '') && row.feedback_source === 'human';
 }
 
@@ -98,7 +136,12 @@ export function presentInstructorCurie(input: {
 }): InstructorCuriePresentation {
   const review = input.curieReview;
   const status = review?.status ?? null;
-  const humanOwns = input.feedbackSource === 'human';
+  const awaitingApproval = status === 'ready_for_approval';
+  const approved = status === 'approved';
+  // Approval-workflow reviews are judged on review-level data: an Edit & Approve
+  // writes source=human but the attempt stays in the CURIE lifecycle.
+  const workflowOwned = awaitingApproval || approved;
+  const humanOwns = input.feedbackSource === 'human' && !workflowOwned;
   const submitted = input.submissionStatus === 'submitted';
   const finalized = FINALIZED_FEEDBACK.has(input.submissionStatus ?? '');
   const pending = status === 'pending_evaluation';
@@ -107,17 +150,26 @@ export function presentInstructorCurie(input: {
   const lockedFlag = review?.instructor_form_locked !== false;
   const canOverride = ready && !humanOwns && finalized;
 
+  let source: FeedbackSource | string | null | undefined = input.feedbackSource;
+  if (awaitingApproval) {
+    source = 'curie';
+  } else if (approved) {
+    source = review?.approval?.published_source ?? 'curie';
+  }
+
   return {
     reviewStatusLabel: status ? queueCurieStatusLabel(status) : null,
-    sourceLabel: humanOwns || input.feedbackSource === 'curie'
-      ? queueSourceLabel(input.feedbackSource) as 'CURIE' | 'Human'
+    sourceLabel: source === 'human' || source === 'curie'
+      ? queueSourceLabel(source) as 'CURIE' | 'Human'
       : null,
     formLocked: submitted && pending && lockedFlag,
     showFailedRecovery: submitted && failed,
-    showReadyOutput: ready && !humanOwns,
+    showReadyOutput: (ready && !humanOwns) || workflowOwned,
     canOverride,
     requireOverrideConfirm: canOverride,
     humanOwns,
     isSlowPending: Boolean(review?.is_slow_pending && pending),
+    awaitingApproval,
+    approved,
   };
 }

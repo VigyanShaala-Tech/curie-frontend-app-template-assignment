@@ -17,6 +17,7 @@ import { Button, ModalDialog, ActionRow } from '@openedx/paragon';
 import { TemplateSelector } from './TemplateSelector';
 import { TemplateCanvas } from './TemplateCanvas';
 import { FieldEditorPopup } from './FieldEditorPopup';
+import { AssignmentForm } from './AssignmentForm';
 import { PdfPoller } from './PdfPoller';
 import { StudentFeedbackPanel } from './StudentFeedbackPanel';
 import { StudentSubmissionDetail } from './StudentSubmissionDetail';
@@ -31,14 +32,21 @@ import { useBackNavigationGuard } from '../hooks/useBackNavigationGuard';
 import { usePendingReviewPolling } from '../hooks/usePendingReviewPolling';
 import { submissionsApi, formatApiError } from '../services/api';
 import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
+import {
+  AWAITING_APPROVAL_POLL_INTERVAL_MS,
+  CURIE_STATUS_READY_FOR_APPROVAL,
+  PENDING_POLL_INTERVAL_MS,
+} from '../lifecycle/constants';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
-import { getActiveFields, isFieldEmpty } from '../utils/activeFields';
+import { areRequiredFieldsComplete, getActiveFields, isFieldEmpty } from '../utils/activeFields';
+import { hasPriorSubmissionAttempt } from '../utils/submissionAttempt';
 import { resolveFieldLayout, FIELD_TEXT_FONT_FAMILY } from '../utils/fieldLayout';
 import { clampFormDataToFields } from '../utils/clampTextToField';
 import { capacitySubmitPlan } from '../utils/capacitySubmit';
 import type { FormField, LearnerCurieReview, SubmissionVersion } from '../types';
 
 const SUBMIT_GREEN = '#69AB4A';
+const SUBMIT_GREY = '#9CA3AF';
 
 export const TasApp: React.FC = () => {
   const {
@@ -49,6 +57,7 @@ export const TasApp: React.FC = () => {
     setSubmission,
     formData,
     setFormData,
+    setFormValue,
     clearFormData,
     clearSelection,
     isPreviewMode,
@@ -131,18 +140,21 @@ export const TasApp: React.FC = () => {
     }
   }, [selectedTemplate]);
 
-  // Pending-only refresh. Stops on ready/failed or unmount; refetches on focus.
+  // Pending/awaiting-approval refresh. Stops on release/failure or unmount; refetches on focus.
+  const awaitingApproval = submission?.curie_review_status === CURIE_STATUS_READY_FOR_APPROVAL;
   const shouldPoll = Boolean(
     submission?.id
     && submission.status !== 'draft'
     && (
       submission.curie_review_status === 'pending_evaluation'
+      || awaitingApproval
       || (submission.curie_review_status == null && !submission.feedback)
     ),
   );
   const { observedPending } = usePendingReviewPolling({
     enabled: Boolean(submission?.id && submission.status !== 'draft'),
     isPending: shouldPoll,
+    intervalMs: awaitingApproval ? AWAITING_APPROVAL_POLL_INTERVAL_MS : PENDING_POLL_INTERVAL_MS,
     identity: submission ? `${submission.id}:${submission.version_number}` : null,
     fetcher: () => submissionsApi.get(submission!.id),
     onResult: setSubmission,
@@ -162,6 +174,7 @@ export const TasApp: React.FC = () => {
     selectedTemplate
     && (
       lifecycle.displayState === 'pending'
+      || lifecycle.displayState === 'awaiting_approval'
       || lifecycle.displayState === 'live_failed'
       || lifecycle.displayState === 'curie_accepted'
       || lifecycle.displayState === 'curie_rejected'
@@ -511,6 +524,10 @@ export const TasApp: React.FC = () => {
 
   const isLocked = lifecycle.isCanvasReadOnly;
   const isRejected = lifecycle.useLegacyReopen;
+  const requiredComplete = areRequiredFieldsComplete(selectedTemplate, formData);
+  const canClickSubmit = Boolean(submission) && !isSaving && requiredComplete;
+  const useFormEntry = !isLocked && !isPreviewMode;
+  const assignmentFormMode = hasPriorSubmissionAttempt(submission) ? 'overview' : 'wizard';
   const backGuardEnabled = Boolean(
     selectedTemplate && submission && submission.status === 'draft',
   );
@@ -578,6 +595,7 @@ export const TasApp: React.FC = () => {
 
   if (showCurieReviewScreen && submission && (
     lifecycle.displayState === 'pending'
+    || lifecycle.displayState === 'awaiting_approval'
     || lifecycle.displayState === 'live_failed'
     || lifecycle.displayState === 'curie_accepted'
     || lifecycle.displayState === 'curie_rejected'
@@ -786,12 +804,13 @@ export const TasApp: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSubmit()}
-              disabled={isSaving || !submission}
+              disabled={!canClickSubmit}
               style={{
                 ...btnBase,
-                background: SUBMIT_GREEN,
+                background: requiredComplete ? SUBMIT_GREEN : SUBMIT_GREY,
                 color: '#fff',
-                opacity: (isSaving || !submission) ? 0.5 : 1,
+                opacity: isSaving ? 0.5 : 1,
+                cursor: canClickSubmit ? 'pointer' : 'not-allowed',
               }}
             >
               Submit
@@ -827,7 +846,7 @@ export const TasApp: React.FC = () => {
           padding: '24px',
         }}
       >
-        {/* Inner container — white card that holds the canvas */}
+        {/* Inner container — form entry, or canvas for preview / locked review */}
         <div
           className="tas-submission-card"
           style={{
@@ -839,7 +858,17 @@ export const TasApp: React.FC = () => {
             margin: '0 auto',
           }}
         >
-          <TemplateCanvas template={selectedTemplate} readOnly={isLocked || isPreviewMode} />
+          {useFormEntry ? (
+            <AssignmentForm
+              template={selectedTemplate}
+              values={formData}
+              onChange={setFormValue}
+              isMobile={isMobile}
+              mode={assignmentFormMode}
+            />
+          ) : (
+            <TemplateCanvas template={selectedTemplate} readOnly={isLocked || isPreviewMode} />
+          )}
         </div>
 
         {isLocked && submission?.feedback
@@ -877,8 +906,10 @@ export const TasApp: React.FC = () => {
         )}
       </div>
 
-      {/* Field editor popup */}
-      {!isLocked && <FieldEditorPopup field={selectedField} fields={selectedTemplate.fields} />}
+      {/* Field editor popup — canvas preview / locked paths only */}
+      {!useFormEntry && !isLocked && (
+        <FieldEditorPopup field={selectedField} fields={selectedTemplate.fields} />
+      )}
 
       {/* PDF / submission status banner */}
       {isLocked && (
