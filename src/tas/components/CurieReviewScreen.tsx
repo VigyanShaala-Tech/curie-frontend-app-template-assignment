@@ -33,7 +33,7 @@ interface Props {
   template: Template;
   displayState: Extract<
   DisplayState,
-  'pending' | 'live_failed' | 'curie_accepted' | 'curie_rejected'
+  'pending' | 'awaiting_instructor_review' | 'live_failed' | 'curie_accepted' | 'curie_rejected'
   >;
   review: LearnerCurieReview | null;
   title: string;
@@ -51,6 +51,8 @@ interface Props {
   submission?: Submission | null;
   onBack: () => void;
   onRequestSubmit: (formData: Record<string, string>) => void;
+  onEditAssignment?: () => void;
+  reviewLabel?: string;
 }
 
 export const CurieReviewScreen: React.FC<Props> = ({
@@ -72,6 +74,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
   submission,
   onBack,
   onRequestSubmit,
+  onEditAssignment,
+  reviewLabel = 'Curie Review',
 }) => {
   const [mobileTab, setMobileTab] = useState<'worksheet' | 'review'>(
     'worksheet',
@@ -82,7 +86,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const [draft, setDraft] = useState<Record<string, string>>(formData);
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
 
-  const pending = displayState === 'pending';
+  const awaitingReview = displayState === 'awaiting_instructor_review';
+  const pending = displayState === 'pending' || awaitingReview;
   const liveFailed = displayState === 'live_failed';
   const accepted = displayState === 'curie_accepted';
   const rejected = displayState === 'curie_rejected';
@@ -134,7 +139,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     review?.verdict ?? (accepted ? 'accepted' : 'rejected'),
   );
   if (pending) {
-    verdictLabel = awaitingInstructorApproval
+    verdictLabel = awaitingReview || awaitingInstructorApproval
       ? 'Awaiting Instructor Review'
       : 'Pending Evaluation';
   } else if (liveFailed) {
@@ -169,14 +174,18 @@ export const CurieReviewScreen: React.FC<Props> = ({
         'Editing will let you revise your answers and resubmit for a new review. Continue?',
       )
     ) {
-      openEdit();
+      if (onEditAssignment) {
+        onEditAssignment();
+      } else {
+        openEdit();
+      }
     }
   };
 
   let reviewBody: React.ReactNode;
   if (pending) {
     let pendingVariant: 'pending' | 'slow' | 'awaiting_approval' = 'pending';
-    if (awaitingInstructorApproval) {
+    if (awaitingReview || awaitingInstructorApproval) {
       pendingVariant = 'awaiting_approval';
     } else if (isSlowPending) {
       pendingVariant = 'slow';
@@ -187,7 +196,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   } else if (liveFailed && historical) {
     reviewBody = (
       <div>
-        <h3 className="curie-review-heading">Curie Review</h3>
+        <h3 className="curie-review-heading">{reviewLabel}</h3>
         <p className="curie-pending-note">{HISTORICAL_FAILED_COPY}</p>
       </div>
     );
@@ -196,7 +205,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   } else {
     reviewBody = (
       <div>
-        <h3 className="curie-review-heading">Curie Review</h3>
+        <h3 className="curie-review-heading">{reviewLabel}</h3>
         {showStars && <CurieStarRating rating={review?.star_rating} />}
         <div className="curie-section-title">Overall Feedback</div>
         <div className="curie-overall-feedback">

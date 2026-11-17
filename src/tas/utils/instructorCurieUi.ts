@@ -12,11 +12,13 @@ export const INSTRUCTOR_OVERRIDE_CONFIRM = 'Saving this grade replaces CURIE’s
 
 export const INSTRUCTOR_HUMAN_OWNS_COPY = 'This attempt is owned by instructor grading (source: Human). A later learner resubmission will return to CURIE when enabled.';
 
-export const INSTRUCTOR_OVERRIDE_ACTION = 'Override CURIE review';
+export const INSTRUCTOR_OVERRIDE_ACTION = 'Manually Override';
 
-export const INSTRUCTOR_PUBLISH_ACTION = 'Publish CURIE review';
+export const INSTRUCTOR_PUBLISH_ACTION = 'Approve CURIE Feedback';
 
-export const INSTRUCTOR_AWAITING_APPROVAL_COPY = 'CURIE has completed this review. Publish it unchanged or override it with instructor feedback.';
+export const INSTRUCTOR_PUBLISH_CONFIRM = 'Approve and publish this CURIE feedback to the learner?';
+
+export const INSTRUCTOR_AWAITING_APPROVAL_COPY = 'CURIE has completed this review. Approve its feedback unchanged or manually override it.';
 
 export const GATE_OVERALL_LABEL = 'Overall SWOT Coherence & Alignment';
 

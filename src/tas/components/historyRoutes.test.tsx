@@ -135,7 +135,7 @@ describe('reload-safe history routes', () => {
           instructor_comment: '',
           pdf_url: null,
           download_url: null,
-          curie_review_status: 'pending_evaluation',
+          curie_review_status: 'ready',
           awaiting_instructor_approval: true,
           feedback_source: null,
           verdict: null,

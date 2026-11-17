@@ -161,6 +161,20 @@ export interface CurieFieldFeedback {
   }>;
 }
 
+export interface CurieCriterionScore {
+  criterion: string;
+  score: number;
+  max_score: number;
+}
+
+export interface StructuredFeedback {
+  schema_version?: number;
+  verdict?: CurieVerdict | null;
+  gate_criterion_scores: CurieCriterionScore[];
+  field_feedback: CurieFieldFeedback[];
+  overall_feedback: string;
+}
+
 export interface SubmissionFeedback {
   status: 'pending' | 'approved' | 'rejected';
   comment: string;
@@ -169,6 +183,8 @@ export interface SubmissionFeedback {
   source?: FeedbackSource;
   verdict?: CurieVerdict | null;
   field_feedback?: CurieFieldFeedback[];
+  star_rating?: number | null;
+  structured_feedback?: StructuredFeedback;
 }
 
 export interface LearnerCurieReview {
@@ -223,6 +239,7 @@ export interface SubmissionVersion {
   feedback_source?: FeedbackSource | null;
   verdict?: CurieVerdict | null;
   star_rating?: number | null;
+  field_feedback?: CurieFieldFeedback[];
   /** Legacy fields retained for older callers / instructor table field counts. */
   form_data?: Record<string, string>;
   saved_at?: string;

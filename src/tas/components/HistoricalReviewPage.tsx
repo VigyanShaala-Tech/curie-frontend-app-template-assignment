@@ -39,6 +39,9 @@ function humanFeedbackFromVersion(
     status: version.feedback_status ?? 'pending',
     comment: version.instructor_comment ?? '',
     source: version.feedback_source === 'curie' ? 'curie' : 'human',
+    verdict: version.verdict,
+    star_rating: version.star_rating,
+    field_feedback: version.field_feedback ?? [],
   };
 }
 
@@ -51,6 +54,9 @@ function historicalDisplayState(
 ): DisplayState {
   if (!review) {
     return 'legacy';
+  }
+  if (review.awaiting_instructor_approval) {
+    return 'awaiting_instructor_review';
   }
   if (review.status === 'pending_evaluation') {
     return 'pending';
@@ -174,11 +180,30 @@ export const HistoricalReviewPage: React.FC = () => {
   }
 
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
-  const displayState = historicalDisplayState(review);
+  const humanStructuredReview: LearnerCurieReview | null = (
+    humanFeedback?.source === 'human' && humanFeedback.field_feedback?.length
+      ? {
+        status: 'ready',
+        verdict: humanFeedback.verdict
+          ?? (humanFeedback.status === 'approved' ? 'accepted' : 'rejected'),
+        overall_feedback: humanFeedback.comment,
+        field_feedback: humanFeedback.field_feedback,
+        star_rating: humanFeedback.star_rating ?? null,
+        is_slow_pending: false,
+        submission_version_number: versionNumber,
+        error_detail: '',
+        requested_at: null,
+        completed_at: null,
+      }
+      : null
+  );
+  const displayedReview = humanStructuredReview ?? review;
+  const displayState = historicalDisplayState(displayedReview);
   const showCurie = Boolean(
     template
-    && review
+    && displayedReview
     && (displayState === 'pending'
+      || displayState === 'awaiting_instructor_review'
       || displayState === 'live_failed'
       || displayState === 'curie_accepted'
       || displayState === 'curie_rejected'),
@@ -198,18 +223,19 @@ export const HistoricalReviewPage: React.FC = () => {
           displayState={
             displayState as
               | 'pending'
+              | 'awaiting_instructor_review'
               | 'live_failed'
               | 'curie_accepted'
               | 'curie_rejected'
           }
-          review={review}
+          review={displayedReview}
           title={template.name}
           submittedAt={versionSummary?.submitted_at}
           usageKey={usageKey}
           formData={versionSummary?.form_data ?? {}}
           atMaxAttempts={false}
           canReattempt={false}
-          isSlowPending={Boolean(review?.is_slow_pending)}
+          isSlowPending={Boolean(displayedReview?.is_slow_pending)}
           awaitingInstructorApproval={Boolean(
             review?.awaiting_instructor_approval
             || versionSummary?.awaiting_instructor_approval,
@@ -220,6 +246,7 @@ export const HistoricalReviewPage: React.FC = () => {
           attemptNumber={versionSummary?.attempt_number}
           onBack={() => navigate(historyHref)}
           onRequestSubmit={() => undefined}
+          reviewLabel={humanStructuredReview ? 'Instructor Review' : 'Curie Review'}
         />
       )}
       {!loading && !error && !showCurie && (

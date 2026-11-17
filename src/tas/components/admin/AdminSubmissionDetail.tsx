@@ -17,7 +17,11 @@ import { ArrowBack, CheckCircle, InfoOutline } from '@openedx/paragon/icons';
 import { adminSubmissionsApi } from '../../services/api';
 import { useTasStore } from '../../store/tasStore';
 import { usePendingReviewPolling } from '../../hooks/usePendingReviewPolling';
-import type { RubricCriterion, RubricFeedbackEntry } from '../../types';
+import type {
+  RubricCriterion,
+  RubricFeedbackEntry,
+  StructuredFeedback,
+} from '../../types';
 import { htmlToPlainText, plainTextToHtml } from '../../utils/commentHtmlAdapter';
 import {
   normalizeFeedbacks,
@@ -33,11 +37,13 @@ import {
 import { InstructorCommentEditor } from './InstructorCommentEditor';
 import { InstructorCommentHtml } from './InstructorCommentHtml';
 import { InstructorCuriePanel } from './InstructorCuriePanel';
+import { StructuredOverrideEditor } from './StructuredOverrideEditor';
 import { PredefinedFeedbackMultiSelect } from './PredefinedFeedbackMultiSelect';
 import {
   INSTRUCTOR_OVERRIDE_ACTION,
   INSTRUCTOR_OVERRIDE_CONFIRM,
   INSTRUCTOR_PUBLISH_ACTION,
+  INSTRUCTOR_PUBLISH_CONFIRM,
   presentInstructorCurie,
 } from '../../utils/instructorCurieUi';
 
@@ -222,10 +228,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
       feedbackStatus: 'approved' | 'rejected';
       rubricPayload: RubricFeedbackEntry[];
       total: number;
+      structuredFeedback?: StructuredFeedback;
     }) => adminSubmissionsApi.submitFeedback(submissionId, {
       comment,
       rubrics: payload.rubricPayload,
       status: payload.feedbackStatus,
+      structured_feedback: payload.structuredFeedback,
     }),
     onSuccess: () => {
       setFeedbackSaved(true);
@@ -241,6 +249,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
       queryClient.invalidateQueries({ queryKey: ['admin-submissions', usageKey] });
     },
   });
+
+  const handlePublishCurie = () => {
+    if (window.confirm(INSTRUCTOR_PUBLISH_CONFIRM)) {
+      publishCurieMut.mutate();
+    }
+  };
 
   const isLoading = loadingSub || loadingRubrics;
 
@@ -332,14 +346,41 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     feedbackSource: submission.feedback?.source,
     curieReview: submission.curie_review,
   });
+  const activeStructuredFeedback = (
+    submission.feedback?.source === 'human'
+    && submission.feedback?.structured_feedback?.field_feedback?.length > 0
+      ? submission.feedback.structured_feedback
+      : null
+  );
+  const displayedStructuredReview = activeStructuredFeedback
+    ? {
+      status: 'ready',
+      verdict: activeStructuredFeedback.verdict
+        ?? (submission.feedback.status === 'approved' ? 'accepted' : 'rejected'),
+      overall_feedback: activeStructuredFeedback.overall_feedback,
+      gate_criterion_scores: activeStructuredFeedback.gate_criterion_scores,
+      field_feedback: activeStructuredFeedback.field_feedback,
+      instructor_form_locked: false,
+    }
+    : submission.curie_review;
+  const displayedCuriePresentation = activeStructuredFeedback
+    ? { ...curiePresentation, showReadyOutput: true }
+    : curiePresentation;
   const feedbackHistoryVersions = (submission.feedback?.versions ?? []).filter((version: any) => {
+    const currentVersion = submission.version_number ?? submission.version;
+    if (
+      activeStructuredFeedback
+      && version.source === 'human'
+      && version.submission_version_number === currentVersion
+    ) {
+      return false;
+    }
     if (!curiePresentation.showReadyOutput) {
       return true;
     }
     if (version.source === 'human') {
       return true;
     }
-    const currentVersion = submission.version_number ?? submission.version;
     if (version.source === 'curie') {
       return version.submission_version_number !== currentVersion;
     }
@@ -362,20 +403,42 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     }
     feedbackMut.mutate({ feedbackStatus, rubricPayload, total });
   };
+  const handleStructuredOverrideSubmit = (
+    feedbackStatus: 'approved' | 'rejected',
+    structuredFeedback: StructuredFeedback,
+  ) => {
+    if (!window.confirm(INSTRUCTOR_OVERRIDE_CONFIRM)) {
+      return;
+    }
+    feedbackMut.mutate({
+      feedbackStatus,
+      rubricPayload: [],
+      total: 0,
+      structuredFeedback,
+    });
+  };
   const versionHistory: any[] = submission.version_history ?? [];
   const isSubmitted = submission.status === 'submitted';
-  const showGradingForm = (
+  const showStructuredOverride = Boolean(
+    overrideEditing
+    && curiePresentation.showReadyOutput
+    && submission.curie_review,
+  );
+  const showGradingForm = !showStructuredOverride && (
     (isSubmitted && !curiePresentation.formLocked && !curiePresentation.canOverride)
     || overrideEditing
   );
   const showPreviousProjection = Boolean(
     !isSubmitted
     && submission.feedback
-    && !curiePresentation.showReadyOutput,
+    && !curiePresentation.showReadyOutput
+    && !activeStructuredFeedback,
   );
   let feedbackCardTitle = 'Previous Feedback';
   if (curiePresentation.canPublish || curiePresentation.showReadyOutput) {
     feedbackCardTitle = 'CURIE review';
+  } else if (activeStructuredFeedback) {
+    feedbackCardTitle = 'Instructor review';
   } else if (showGradingForm || isSubmitted) {
     feedbackCardTitle = 'Instructor Feedback';
   }
@@ -432,8 +495,8 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
               <Card.Header title={feedbackCardTitle} />
               <Card.Section>
                 <InstructorCuriePanel
-                  presentation={curiePresentation}
-                  review={submission.curie_review}
+                  presentation={displayedCuriePresentation}
+                  review={displayedStructuredReview}
                   templateFields={submission.template_fields ?? {}}
                   overrideEditing={overrideEditing}
                 />
@@ -448,7 +511,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                     size="sm"
                     className="mb-3 mr-2"
                     disabled={publishCurieMut.isPending}
-                    onClick={() => publishCurieMut.mutate()}
+                    onClick={handlePublishCurie}
                   >
                     {publishCurieMut.isPending ? 'Publishing…' : INSTRUCTOR_PUBLISH_ACTION}
                   </Button>
@@ -472,6 +535,14 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   >
                     Cancel override
                   </Button>
+                )}
+                {showStructuredOverride && submission.curie_review && !feedbackSaved && (
+                  <StructuredOverrideEditor
+                    review={submission.curie_review}
+                    templateFields={submission.template_fields ?? {}}
+                    isSaving={feedbackMut.isPending}
+                    onSubmit={handleStructuredOverrideSubmit}
+                  />
                 )}
                 {/* Past feedback for human-owned / non-CURIE finalized reviews */}
                 {showPreviousProjection && (

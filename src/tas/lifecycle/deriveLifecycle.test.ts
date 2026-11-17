@@ -47,6 +47,21 @@ describe('deriveLifecycle', () => {
     });
   });
 
+  it('keeps refreshing without a loading state while the instructor reviews', () => {
+    expect(deriveLifecycle({
+      submissionStatus: 'submitted',
+      curieReviewStatus: 'ready',
+      awaitingInstructorApproval: true,
+    })).toMatchObject({
+      displayState: 'awaiting_instructor_review',
+      canEdit: false,
+      canSubmit: false,
+      shouldPoll: true,
+      isSlowPending: false,
+      instructorFormLocked: false,
+    });
+  });
+
   it('treats a cold failed load as editable and submittable', () => {
     expect(deriveLifecycle({
       submissionStatus: 'submitted',

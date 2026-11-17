@@ -62,7 +62,29 @@ export const InstructorCuriePanel: React.FC<Props> = ({
       : templateFields[fieldId] ?? fieldId
   );
   const scoredFields = fieldEntries.filter((entry) => fieldScoreOutOfTen(entry) != null);
-  const criterionWise = Object.entries(review?.criterion_wise_scores ?? {});
+  const derivedCriterionWise = (() => {
+    const totals: Record<string, number> = {};
+    const weights: Record<string, number> = {};
+    fieldEntries.filter((entry) => (entry.weight ?? 1) > 0).forEach((entry) => {
+      (entry.criterion_scores ?? []).forEach((score) => {
+        const weight = entry.weight ?? 1;
+        totals[score.criterion] = (totals[score.criterion] ?? 0) + (score.score * weight);
+        weights[score.criterion] = (weights[score.criterion] ?? 0) + weight;
+      });
+    });
+    return Object.fromEntries(
+      Object.entries(totals).map(([criterion, total]) => [criterion, total / weights[criterion]]),
+    );
+  })();
+  const criterionWise = Object.entries(
+    Object.keys(review?.criterion_wise_scores ?? {}).length > 0
+      ? review?.criterion_wise_scores ?? {}
+      : derivedCriterionWise,
+  );
+  const derivedGateScore = review?.gate_criterion_scores?.length
+    ? review.gate_criterion_scores.reduce((sum, item) => sum + item.score, 0)
+      / review.gate_criterion_scores.length
+    : null;
   const showScoreSummaries = Boolean(presentation.showReadyOutput && review);
 
   return (
@@ -120,7 +142,10 @@ export const InstructorCuriePanel: React.FC<Props> = ({
             <p className="small font-weight-bold text-muted text-uppercase mb-1" style={{ letterSpacing: '0.04em' }}>
               Gate
             </p>
-            <ScoreRow label={GATE_OVERALL_LABEL} value={formatScoreOutOfTen(review?.gate_score)} />
+            <ScoreRow
+              label={GATE_OVERALL_LABEL}
+              value={formatScoreOutOfTen(review?.gate_score ?? derivedGateScore)}
+            />
           </div>
 
           {scoredFields.length === 0 ? (

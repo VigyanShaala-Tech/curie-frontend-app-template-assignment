@@ -163,7 +163,8 @@ export const TasApp: React.FC = () => {
   const shouldPoll = Boolean(
     submission?.id
     && submission.status !== 'draft'
-    && (submission.curie_review_status === 'pending_evaluation'
+    && (submission.awaiting_instructor_approval
+      || submission.curie_review_status === 'pending_evaluation'
       || (submission.curie_review_status == null && !submission.feedback)),
   );
   const { observedPending } = usePendingReviewPolling({
@@ -182,16 +183,33 @@ export const TasApp: React.FC = () => {
     feedbackSource: submission?.feedback?.source,
     atMaxAttempts: submission?.at_max_attempts,
     isSlowPending: submission?.is_slow_pending,
+    awaitingInstructorApproval: submission?.awaiting_instructor_approval,
     hasFeedback: Boolean(submission?.feedback),
     observedPendingInSession: observedPending,
   });
 
-  const showCurieReviewScreen = Boolean(
-    selectedTemplate
-    && (lifecycle.displayState === 'pending'
+  const hasStructuredHumanFeedback = Boolean(
+    submission?.feedback?.source === 'human'
+    && submission.feedback.field_feedback?.length,
+  );
+  let structuredHumanDisplayState: 'curie_accepted' | 'curie_rejected' | null = null;
+  if (hasStructuredHumanFeedback) {
+    structuredHumanDisplayState = submission?.status === 'approved'
+      ? 'curie_accepted'
+      : 'curie_rejected';
+  }
+  const reviewDisplayState = structuredHumanDisplayState
+    ?? (lifecycle.displayState === 'pending'
+      || lifecycle.displayState === 'awaiting_instructor_review'
       || lifecycle.displayState === 'live_failed'
       || lifecycle.displayState === 'curie_accepted'
-      || lifecycle.displayState === 'curie_rejected'),
+      || lifecycle.displayState === 'curie_rejected'
+      ? lifecycle.displayState
+      : null);
+
+  const showCurieReviewScreen = Boolean(
+    selectedTemplate
+    && reviewDisplayState,
   );
 
   useEffect(() => {
@@ -662,7 +680,23 @@ export const TasApp: React.FC = () => {
     );
   }
 
-  const readyReview = learnerReview
+  const structuredHumanReview = hasStructuredHumanFeedback && submission?.feedback
+    ? {
+      status: 'ready' as const,
+      verdict: submission.feedback.verdict
+        ?? (submission.status === 'approved' ? ('accepted' as const) : ('rejected' as const)),
+      overall_feedback: submission.feedback.comment,
+      field_feedback: submission.feedback.field_feedback ?? [],
+      star_rating: submission.feedback.star_rating ?? null,
+      is_slow_pending: false,
+      submission_version_number: submission.version_number,
+      error_detail: '',
+      requested_at: null,
+      completed_at: null,
+    }
+    : null;
+  const readyReview = structuredHumanReview
+    ?? learnerReview
     ?? (submission?.feedback
     && (lifecycle.displayState === 'curie_accepted'
       || lifecycle.displayState === 'curie_rejected')
@@ -687,23 +721,22 @@ export const TasApp: React.FC = () => {
   if (
     showCurieReviewScreen
     && submission
-    && (lifecycle.displayState === 'pending'
-      || lifecycle.displayState === 'live_failed'
-      || lifecycle.displayState === 'curie_accepted'
-      || lifecycle.displayState === 'curie_rejected')
+    && reviewDisplayState
   ) {
     return (
       <>
         <CurieReviewScreen
           template={selectedTemplate}
-          displayState={lifecycle.displayState}
+          displayState={reviewDisplayState}
           review={readyReview}
           title={selectedTemplate.name}
           submittedAt={submission.submitted_at}
           usageKey={mfeContext?.usageKey ?? submission.usage_key}
           formData={formData}
           atMaxAttempts={lifecycle.atMaxAttempts}
-          canReattempt={lifecycle.canReattempt}
+          canReattempt={hasStructuredHumanFeedback
+            ? lifecycle.useLegacyReopen
+            : lifecycle.canReattempt}
           isSlowPending={lifecycle.isSlowPending}
           awaitingInstructorApproval={Boolean(
             submission.awaiting_instructor_approval,
@@ -713,6 +746,8 @@ export const TasApp: React.FC = () => {
           submission={submission}
           onBack={() => navigateBackToAssignment(mfeContext)}
           onRequestSubmit={handleSubmit}
+          onEditAssignment={hasStructuredHumanFeedback ? handleEditAssignment : undefined}
+          reviewLabel={hasStructuredHumanFeedback ? 'Instructor Review' : 'Curie Review'}
         />
         <RequiredFieldsModal
           isOpen={requiredFieldsModalOpen}

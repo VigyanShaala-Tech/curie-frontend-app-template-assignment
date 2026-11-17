@@ -23,6 +23,7 @@ import type {
   TemplateUpdateBody,
   LearnerCurieReview,
   CurieReviewStatus,
+  StructuredFeedback,
 } from '../types';
 import { instructorLockFromQueueRow } from '../lifecycle/queueLock';
 
@@ -400,6 +401,7 @@ export const submissionsApi = {
       feedback_source: v.feedback_source ?? null,
       verdict: v.verdict ?? null,
       star_rating: v.star_rating ?? null,
+      field_feedback: v.field_feedback ?? [],
       form_data: v.form_data ?? {},
       saved_at: v.saved_at ?? v.submitted_at ?? '',
     }));
@@ -586,6 +588,7 @@ export const adminSubmissionsApi = {
       rubrics?: RubricFeedbackEntry[];
       comment?: string;
       status?: string;
+      structured_feedback?: StructuredFeedback;
     },
   ): Promise<void> => {
     await http().post(

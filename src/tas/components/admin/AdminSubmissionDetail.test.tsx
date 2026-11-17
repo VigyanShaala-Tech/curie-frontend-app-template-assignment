@@ -8,6 +8,8 @@ import { useTasStore } from '../../store/tasStore';
 import {
   INSTRUCTOR_OVERRIDE_ACTION,
   INSTRUCTOR_OVERRIDE_CONFIRM,
+  INSTRUCTOR_PUBLISH_ACTION,
+  INSTRUCTOR_PUBLISH_CONFIRM,
 } from '../../utils/instructorCurieUi';
 
 jest.mock('../../services/api', () => ({
@@ -60,7 +62,17 @@ const readyReview = {
     comment: 'Clear enough.',
     weight: 1,
     field_score: 8.7,
+    criterion_scores: [
+      { criterion: 'Task Relevance', score: 9, max_score: 10 },
+      { criterion: 'Reasoning / Understanding', score: 8, max_score: 10 },
+      { criterion: 'Specificity & Evidence', score: 9, max_score: 10 },
+    ],
   }],
+  gate_criterion_scores: [
+    { criterion: 'Task Relevance', score: 9, max_score: 10 },
+    { criterion: 'Reasoning / Understanding', score: 8, max_score: 10 },
+    { criterion: 'Specificity & Evidence', score: 9, max_score: 10 },
+  ],
   instructor_form_locked: false,
   is_slow_pending: false,
   star_rating: 4,
@@ -193,10 +205,10 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     renderDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Publish CURIE review' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: INSTRUCTOR_PUBLISH_ACTION })).toBeTruthy();
     });
     expect(screen.getByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION })).toBeTruthy();
-    expect(screen.getByText(/Publish it unchanged or override it/)).toBeTruthy();
+    expect(screen.getByText(/Approve its feedback unchanged or manually override it/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.getByTestId('curie-staff-output')).toBeTruthy();
   });
@@ -243,17 +255,30 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     expect(screen.queryByText('Personal Development Reflection')).toBeNull();
   });
 
-  it('publishes a held CURIE review unchanged', async () => {
+  it('confirms and publishes an approved held CURIE review unchanged', async () => {
     getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
       curie_review: heldReview,
     })));
     renderDetail();
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Publish CURIE review' }));
+    await userEvent.click(await screen.findByRole('button', { name: INSTRUCTOR_PUBLISH_ACTION }));
+    expect(window.confirm).toHaveBeenCalledWith(INSTRUCTOR_PUBLISH_CONFIRM);
     await waitFor(() => {
       expect(publishMock).toHaveBeenCalledWith('7');
     });
     expect(submitMock).not.toHaveBeenCalled();
+  });
+
+  it('does not publish when CURIE feedback approval is cancelled', async () => {
+    (window.confirm as jest.Mock).mockReturnValue(false);
+    getMock.mockImplementation(() => Promise.resolve().then(() => baseSubmission({
+      curie_review: heldReview,
+    })));
+    renderDetail();
+
+    await userEvent.click(await screen.findByRole('button', { name: INSTRUCTOR_PUBLISH_ACTION }));
+    expect(window.confirm).toHaveBeenCalledWith(INSTRUCTOR_PUBLISH_CONFIRM);
+    expect(publishMock).not.toHaveBeenCalled();
   });
 
   it('uses the existing human feedback endpoint when overriding a held review', async () => {
@@ -263,9 +288,19 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
     renderDetail();
 
     await userEvent.click(await screen.findByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION }));
-    await userEvent.click(screen.getByRole('button', { name: 'Reject' }));
+    expect(screen.getByTestId('structured-override-editor')).toBeTruthy();
+    expect(screen.getByDisplayValue('Clear enough.')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Reattempt' }));
     await waitFor(() => {
-      expect(submitMock).toHaveBeenCalledWith('7', expect.objectContaining({ status: 'rejected' }));
+      expect(submitMock).toHaveBeenCalledWith('7', expect.objectContaining({
+        status: 'rejected',
+        structured_feedback: expect.objectContaining({
+          overall_feedback: OVERALL,
+          field_feedback: expect.arrayContaining([
+            expect.objectContaining({ field_id: 'goal', comment: 'Clear enough.' }),
+          ]),
+        }),
+      }));
     });
     expect(publishMock).not.toHaveBeenCalled();
   });
@@ -353,7 +388,7 @@ describe('AdminSubmissionDetail CURIE instructor UI', () => {
         expect(screen.getByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION })).toBeTruthy();
       });
       await userEvent.click(screen.getByRole('button', { name: INSTRUCTOR_OVERRIDE_ACTION }));
-      const actionLabel = status === 'approved' ? 'Approve' : 'Reject';
+      const actionLabel = status === 'approved' ? 'Approve' : 'Reattempt';
       await userEvent.click(screen.getByRole('button', { name: actionLabel }));
       expect(window.confirm).toHaveBeenCalledWith(INSTRUCTOR_OVERRIDE_CONFIRM);
       await waitFor(() => {

@@ -9,6 +9,7 @@ export type DisplayState =
   | 'legacy'
   | 'draft'
   | 'pending'
+  | 'awaiting_instructor_review'
   | 'live_failed'
   | 'cold_failed'
   | 'curie_accepted'
@@ -21,6 +22,7 @@ export interface LifecycleInput {
   feedbackSource?: FeedbackSource | null;
   atMaxAttempts?: boolean;
   isSlowPending?: boolean;
+  awaitingInstructorApproval?: boolean;
   hasFeedback?: boolean;
   /** True when this mounted session already observed `pending_evaluation`. */
   observedPendingInSession?: boolean;
@@ -136,6 +138,17 @@ export function deriveLifecycle(input: LifecycleInput): LifecycleCapabilities {
       isSlowPending,
       atMaxAttempts: atMax,
       instructorFormLocked,
+    });
+  }
+
+  if (ready && input.awaitingInstructorApproval) {
+    return emptyLifecycle({
+      displayState: 'awaiting_instructor_review',
+      hasCurieReview: true,
+      isCanvasReadOnly: true,
+      shouldPoll: true,
+      atMaxAttempts: atMax,
+      instructorFormLocked: false,
     });
   }
 

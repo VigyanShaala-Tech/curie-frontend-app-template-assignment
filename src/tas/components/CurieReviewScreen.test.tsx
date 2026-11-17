@@ -155,7 +155,7 @@ describe('CurieReviewScreen', () => {
 
   it('shows instructor-review copy without exposing held feedback', () => {
     renderScreen({
-      displayState: 'pending',
+      displayState: 'awaiting_instructor_review',
       awaitingInstructorApproval: true,
       review: null,
       canReattempt: false,
@@ -166,6 +166,7 @@ describe('CurieReviewScreen', () => {
     ).toBeTruthy();
     expect(screen.queryByText(/Curie is reviewing your submission/)).toBeNull();
     expect(screen.queryByText('Strong overall feedback.')).toBeNull();
+    expect(document.querySelector('.curie-spinner')).toBeNull();
   });
 
   it('softens pending copy when the review is slow', () => {
