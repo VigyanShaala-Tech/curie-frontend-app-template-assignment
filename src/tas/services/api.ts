@@ -382,6 +382,18 @@ export const submissionsApi = {
     return { pdf_url: data.pdf_url ?? null, status: data.status };
   },
 
+  /** Preview file only. Does not submit or replace the official PDF. */
+  previewPdf: async (
+    id: string,
+    form_data: Record<string, string>,
+  ): Promise<{ preview_pdf_url: string | null }> => {
+    const { data } = await http().post(
+      `${tasBase()}/student-submission/${id}/preview-pdf/`,
+      { form_data },
+    );
+    return { preview_pdf_url: data.preview_pdf_url ?? null };
+  },
+
   getVersions: async (id: string): Promise<SubmissionVersionsResponse> => {
     const { data } = await http().get(
       `${tasBase()}/student-submission/${id}/versions/`,

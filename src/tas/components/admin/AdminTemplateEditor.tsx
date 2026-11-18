@@ -3,7 +3,7 @@
  * Two-panel: left = metadata + fields, right = canvas with draggable field overlays.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
@@ -11,6 +11,8 @@ import {
 } from '@openedx/paragon';
 import { ArrowBack, Add, ZoomIn, ZoomOut, Refresh } from '@openedx/paragon/icons';
 import { templateTypesApi, adminTemplatesApi } from '../../services/api';
+import { fittedCanvasBox } from '../../utils/fitScaleToWidth';
+import { readImageSize, TEMPLATE_PAGE_HEIGHT, TEMPLATE_PAGE_WIDTH } from '../../utils/readImageSize';
 import { validateStructuralMetadata } from '../../utils/assignmentStructure';
 import { FieldStructureControls } from './FieldStructureControls';
 import type { Template, FormField, FieldPosition, TemplateCreateBody } from '../../types';
@@ -394,10 +396,37 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const imageUrlRef = useRef(imageUrl);
   const drawRef = useRef<{ sx: number; sy: number; rect: DOMRect } | null>(null);
   const [drawPreview, setDrawPreview] = useState<FieldPosition | null>(null);
-  const imageNaturalW = template?.image_width || 794;
-  const imageNaturalH = template?.image_height || 1123;
+  const [readingImage, setReadingImage] = useState(false);
+  const [imageNaturalW, setImageNaturalW] = useState(template?.image_width || TEMPLATE_PAGE_WIDTH);
+  const [imageNaturalH, setImageNaturalH] = useState(template?.image_height || TEMPLATE_PAGE_HEIGHT);
+  const [panelWidth, setPanelWidth] = useState(0);
+  const [viewScale, setViewScale] = useState<number | null>(null);
+
+  imageUrlRef.current = imageUrl;
+
+  useEffect(() => () => {
+    if (imageUrlRef.current.startsWith('blob:')) URL.revokeObjectURL(imageUrlRef.current);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const update = () => {
+      const next = el.clientWidth;
+      setPanelWidth((prev) => (Math.abs(prev - next) < 2 ? prev : next));
+    };
+    update();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, []);
+
+  const fitted = fittedCanvasBox(panelWidth || imageNaturalW, imageNaturalW, imageNaturalH, 0);
+  const zoomedIn = viewScale != null && viewScale > fitted.scale + 0.02;
 
   const { data: typesResult } = useQuery({
     queryKey: ['template-types'],
@@ -500,6 +529,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   }, []);
 
   const handleSave = () => {
+    if (readingImage) return;
     if (!name.trim()) { alert('Please enter a template name.'); return; }
     if (!templateTypeId) { alert('Please select a template type.'); return; }
     const structureErrors = validateStructuralMetadata(fields);
@@ -549,7 +579,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
           variant="primary"
           size="sm"
           onClick={handleSave}
-          disabled={saveMut.isPending}
+          disabled={saveMut.isPending || readingImage}
         >
           {saveMut.isPending ? <Spinner animation="border" size="sm" screenReaderText="Saving" /> : isEdit ? 'Save Changes' : 'Create'}
         </Button>
@@ -594,9 +624,26 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const file = e.target.files?.[0] ?? null;
                   setImageFile(file);
-                  if (file) setImageUrl(URL.createObjectURL(file));
+                  if (!file) return;
+                  setReadingImage(true);
+                  readImageSize(file)
+                    .then((size) => {
+                      setImageUrl((prev) => {
+                        if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+                        return size.url;
+                      });
+                      setImageNaturalW(size.width);
+                      setImageNaturalH(size.height);
+                    })
+                    .catch(() => {
+                      alert('Could not read that image. Use a PNG or JPEG.');
+                    })
+                    .finally(() => setReadingImage(false));
                 }}
               />
+              <p className="small text-muted mb-0 mt-1">
+                Page size {imageNaturalW} × {imageNaturalH}px. Extra pages extend downward.
+              </p>
               {imageUrl && (
                 <img src={imageUrl} alt="preview" className="mt-2 rounded" style={{ maxWidth: '100%', maxHeight: 80, objectFit: 'contain' }} />
               )}
@@ -687,24 +734,53 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
         </div>
 
         {/* Right panel: canvas */}
-        <div className="flex-grow-1 position-relative overflow-hidden" style={{ background: '#e5e7eb' }}>
-          <TransformWrapper minScale={0.2} maxScale={4} limitToBounds={false} centerOnInit wheel={{ disabled: true }} pinch={{ disabled: true }}>
-            {({ zoomIn, zoomOut, resetTransform }) => (
+        <div
+          ref={scrollRef}
+          className="flex-grow-1 position-relative"
+          style={{ background: '#e5e7eb', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}
+        >
+          <TransformWrapper
+            key={`fit-${fitted.scale.toFixed(4)}-${imageNaturalW}x${imageNaturalH}`}
+            initialScale={fitted.scale}
+            minScale={fitted.scale}
+            maxScale={4}
+            limitToBounds={false}
+            centerOnInit={false}
+            initialPositionX={0}
+            initialPositionY={0}
+            wheel={{ disabled: true }}
+            pinch={{ disabled: true }}
+            panning={{ disabled: !zoomedIn, allowRightClickPan: false }}
+            onTransformed={(ref) => setViewScale(ref.state.scale)}
+          >
+            {({ zoomIn, zoomOut, setTransform }) => (
               <>
-                {/* Zoom controls */}
-                <div className="position-absolute d-flex flex-column gap-2" style={{ top: 12, right: 12, zIndex: 10 }}>
-                  {([
-                    { icon: ZoomIn,  action: () => zoomIn(),        label: '+' },
-                    { icon: ZoomOut, action: () => zoomOut(),       label: '−' },
-                    { icon: Refresh, action: () => resetTransform(), label: '↺' },
-                  ] as const).map(({ icon: Ic, action, label }) => (
-                    <Button key={label} variant="light" size="sm" iconBefore={Ic} onClick={action} className="p-1 shadow-sm">
-                      {' '}
-                    </Button>
-                  ))}
+                <div style={{
+                  position: 'sticky', top: 12, zIndex: 10, height: 0,
+                  display: 'flex', justifyContent: 'flex-end', paddingRight: 12,
+                }}
+                >
+                  <div className="d-flex flex-column gap-2">
+                    {([
+                      { icon: ZoomIn, action: () => zoomIn(), label: '+' },
+                      { icon: ZoomOut, action: () => zoomOut(), label: '−' },
+                      { icon: Refresh, action: () => setTransform(0, 0, fitted.scale, 0), label: '↺' },
+                    ] as const).map(({ icon: Ic, action, label }) => (
+                      <Button key={label} variant="light" size="sm" iconBefore={Ic} onClick={action} className="p-1 shadow-sm">
+                        {' '}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
-                <TransformComponent wrapperClass="w-100 h-100" contentClass="w-100 h-100 d-flex align-items-center justify-content-center">
+                <TransformComponent
+                  wrapperStyle={{ width: '100%', height: fitted.height }}
+                  contentStyle={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'center',
+                  }}
+                >
                   <div
                     ref={canvasRef}
                     className="position-relative shadow"
@@ -757,8 +833,8 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
             )}
           </TransformWrapper>
 
-          <div className="position-absolute small text-muted bg-white rounded shadow-sm px-3 py-2" style={{ bottom: 12, left: 12, pointerEvents: 'none' }}>
-            Drag to move · resize from bottom-right · right-click drag to draw new field
+          <div className="small text-muted bg-white rounded shadow-sm px-3 py-2" style={{ position: 'sticky', bottom: 12, margin: '12px', width: 'fit-content', pointerEvents: 'none' }}>
+            Scroll for more pages · zoom to pan · resize from bottom-right · right-click drag to draw
           </div>
         </div>
       </div>

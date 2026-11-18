@@ -1,4 +1,4 @@
-import { fitScaleToBox, fitScaleToWidth } from './fitScaleToWidth';
+import { fitScaleToBox, fitScaleToWidth, fittedCanvasBox } from './fitScaleToWidth';
 
 describe('fitScaleToWidth', () => {
   it('fits natural width into the wrapper minus padding, capped at 1', () => {
@@ -23,5 +23,21 @@ describe('fitScaleToBox', () => {
     const scale = fitScaleToBox(390, 461, 1080, 1400, 48);
     expect(1400 * scale).toBeLessThanOrEqual(461);
     expect(1080 * scale).toBeLessThanOrEqual(390);
+  });
+});
+
+describe('fittedCanvasBox', () => {
+  it('keeps a multi-page image at full width and stacks the extra height', () => {
+    const box = fittedCanvasBox(794, 794, 1123 * 3, 0);
+    expect(box.scale).toBe(1);
+    expect(box.width).toBe(794);
+    expect(box.height).toBe(1123 * 3);
+  });
+
+  it('shrinks width to the container and shortens height by the same scale', () => {
+    const box = fittedCanvasBox(400, 794, 3369, 0);
+    expect(box.scale).toBeCloseTo(400 / 794);
+    expect(box.width).toBeCloseTo(400);
+    expect(box.height).toBeCloseTo(3369 * (400 / 794));
   });
 });

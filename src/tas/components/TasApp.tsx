@@ -30,6 +30,7 @@ import { useTasStore } from '../store/tasStore';
 import { useBackNavigationGuard } from '../hooks/useBackNavigationGuard';
 import { usePendingReviewPolling } from '../hooks/usePendingReviewPolling';
 import { submissionsApi, formatApiError } from '../services/api';
+import { downloadPdf } from '../utils/downloadPdf';
 import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import {
@@ -38,10 +39,7 @@ import {
   isFieldEmpty,
 } from '../utils/activeFields';
 import { isResubmissionForm } from '../utils/resubmissionForm';
-import {
-  resolveFieldLayout,
-  FIELD_TEXT_FONT_FAMILY,
-} from '../utils/fieldLayout';
+import { resolveFieldLayout } from '../utils/fieldLayout';
 import { clampFormDataToFields } from '../utils/clampTextToField';
 import { capacitySubmitPlan } from '../utils/capacitySubmit';
 import type {
@@ -85,6 +83,7 @@ export const TasApp: React.FC = () => {
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [optionalFieldsModalOpen, setOptionalFieldsModalOpen] = useState(false);
   const [confirmSubmitModalOpen, setConfirmSubmitModalOpen] = useState(false);
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
   const [learnerReview, setLearnerReview] = useState<LearnerCurieReview | null>(
     null,
   );
@@ -292,130 +291,29 @@ export const TasApp: React.FC = () => {
     submission?.version_number,
   ]);
 
-  // ── Print / Save as PDF ───────────────────────────────────────────────────
-  const handlePrint = useCallback(() => {
-    // Close editor first so toolbar actions work over the popup backdrop.
-    // formData (committed values) is unchanged; only dismisses the popup UI.
+  // ── Save as PDF (server preview only; does not submit) ───────────────────
+  const handleSavePdf = useCallback(async () => {
     useTasStore.getState().closeFieldEditor();
-
-    if (!selectedTemplate) {
+    if (!submission || isPreparingPdf) {
       return;
     }
-    const imageW = selectedTemplate.image_width || 794;
-    const imageH = selectedTemplate.image_height || 1123;
-
-    const fieldsHtml = selectedTemplate.fields
-      .map((field) => {
-        const pos = selectedTemplate.field_positions[field.id];
-        const value = formData[field.id] ?? '';
-        if (!pos || !value) {
-          return '';
-        }
-        const layout = resolveFieldLayout(field, pos, imageW, imageH);
-        return `
-        <div style="
-          position:absolute;
-          left:${pos.x}%;top:${pos.y}%;
-          width:${pos.width}%;height:${pos.height}%;
-          font-family:${FIELD_TEXT_FONT_FAMILY};
-          font-size:${layout.fontSize}px;
-          font-weight:400;color:#111827;
-          overflow:hidden;padding:2px;box-sizing:border-box;
-          line-height:1.3;white-space:pre-wrap;
-          overflow-wrap:anywhere;word-break:break-word;
-        ">${value.replace(/</g, '&lt;')}</div>`;
-      })
-      .join('');
-
-    const html = `<!DOCTYPE html><html><head>
-      <title>${selectedTemplate.name}</title>
-      <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { width:${imageW}px; }
-        @page { size:${imageW}px ${imageH}px; margin:0; }
-        @media print { body { width:${imageW}px; } }
-      </style>
-    </head><body>
-      <div style="position:relative;width:${imageW}px;height:${imageH}px;">
-        <img src="${selectedTemplate.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" />
-        ${fieldsHtml}
-      </div>
-    </body></html>`;
-
-    const triggerPrint = (doc: Document, win: Window) => {
-      let printed = false;
-      const runPrint = () => {
-        if (printed) {
-          return;
-        }
-        printed = true;
-        try {
-          win.focus();
-          win.print();
-        } catch {
-          // Ignore print errors (some mobile browsers block print silently).
-        }
-      };
-
-      const img = doc.querySelector('img');
-      if (img && !img.complete) {
-        const onReady = () => {
-          img.removeEventListener('load', onReady);
-          img.removeEventListener('error', onReady);
-          // Allow layout to settle before opening the print sheet.
-          window.setTimeout(runPrint, 50);
-        };
-        img.addEventListener('load', onReady);
-        img.addEventListener('error', onReady);
-        // Fallback if load events never fire.
-        window.setTimeout(onReady, 1500);
-      } else {
-        window.setTimeout(runPrint, 50);
+    try {
+      setIsPreparingPdf(true);
+      const { preview_pdf_url: previewUrl } = await submissionsApi.previewPdf(
+        submission.id,
+        formData,
+      );
+      if (!previewUrl) {
+        alert('Could not create the PDF. Please try again.');
+        return;
       }
-    };
-
-    const useIframeFallback = isMobile;
-    let win: Window | null = null;
-    if (!useIframeFallback) {
-      win = window.open('', '_blank');
+      await downloadPdf(previewUrl, `preview_${submission.id}.pdf`);
+    } catch (err) {
+      alert(formatApiError(err, 'Could not create the PDF. Please try again.'));
+    } finally {
+      setIsPreparingPdf(false);
     }
-
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      triggerPrint(win.document, win);
-      return;
-    }
-
-    // Mobile / popup-blocked: same-tab hidden iframe (reuse same HTML generation).
-    const existing = document.getElementById('tas-print-iframe');
-    if (existing) {
-      existing.remove();
-    }
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'tas-print-iframe';
-    iframe.setAttribute('aria-hidden', 'true');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-    document.body.appendChild(iframe);
-
-    const iframeWin = iframe.contentWindow;
-    const iframeDoc = iframe.contentDocument || iframeWin?.document;
-    if (!iframeWin || !iframeDoc) {
-      iframe.remove();
-      return;
-    }
-
-    iframeDoc.open();
-    iframeDoc.write(html);
-    iframeDoc.close();
-    triggerPrint(iframeDoc, iframeWin);
-
-    // Clean up after print dialog interaction window.
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 60_000);
-  }, [selectedTemplate, formData, isMobile]);
+  }, [submission, formData, isPreparingPdf]);
 
   // ── Submit handler ─────────────────────────────────────────────────────────
   const clampFormDataForSubmit = useCallback(
@@ -926,13 +824,19 @@ export const TasApp: React.FC = () => {
             </>
           )}
 
-          {/* Save as PDF */}
+          {/* Save as PDF — server preview file, not the official submission */}
           <button
             type="button"
-            onClick={handlePrint}
-            style={{ ...btnBase, background: '#f3f4f6', color: '#374151' }}
+            onClick={() => { void handleSavePdf(); }}
+            disabled={!submission || isPreparingPdf}
+            style={{
+              ...btnBase,
+              background: '#f3f4f6',
+              color: '#374151',
+              opacity: (!submission || isPreparingPdf) ? 0.5 : 1,
+            }}
           >
-            ↓ Save as PDF
+            {isPreparingPdf ? 'Preparing PDF…' : '↓ Save as PDF'}
           </button>
 
           {/* Submit */}

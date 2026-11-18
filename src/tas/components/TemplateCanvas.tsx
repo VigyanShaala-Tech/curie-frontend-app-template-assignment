@@ -8,7 +8,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { useTasStore } from '../store/tasStore';
 import { FieldOverlay } from './FieldOverlay';
-import { fitScaleToBox, fitScaleToWidth } from '../utils/fitScaleToWidth';
+import { fittedCanvasBox } from '../utils/fitScaleToWidth';
 import type { Template } from '../types';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   readOnly?: boolean;
   overlay?: React.ReactNode;
   formDataOverride?: Record<string, string>;
-  /** Fit the natural worksheet into the current pane on first paint (desktop review). */
+  /** Review pane. The image keeps its width and extra pages scroll. */
   fitToPane?: boolean;
 }
 
@@ -30,37 +30,22 @@ export const TemplateCanvas: React.FC<Props> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const {
-    canvasState, setCanvasState, selectedFieldId, setSelectedFieldId, isMobile,
+    setCanvasState, selectedFieldId, setSelectedFieldId, isMobile,
   } = useTasStore();
 
   const imageNaturalW = template.image_width || 794;
   const imageNaturalH = template.image_height || 1123;
 
-  // Mobile and review panes: fit natural-size content into the wrapper.
-  const [paneFitScale, setPaneFitScale] = useState<number | null>(null);
-  const shouldFitPane = isMobile || fitToPane;
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [viewScale, setViewScale] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    if (!shouldFitPane) {
-      setPaneFitScale(null);
-      return undefined;
-    }
-
     const el = wrapperRef.current;
     if (!el) { return undefined; }
 
     const update = () => {
-      if (fitToPane) {
-        setPaneFitScale(fitScaleToBox(
-          el.clientWidth,
-          el.clientHeight,
-          imageNaturalW,
-          imageNaturalH,
-          48,
-        ));
-      } else {
-        setPaneFitScale(fitScaleToWidth(el.clientWidth, imageNaturalW, 16));
-      }
+      const next = el.clientWidth;
+      setContainerWidth((prev) => (Math.abs(prev - next) < 2 ? prev : next));
     };
 
     update();
@@ -73,7 +58,15 @@ export const TemplateCanvas: React.FC<Props> = ({
     return () => {
       observer?.disconnect();
     };
-  }, [shouldFitPane, fitToPane, isMobile, imageNaturalW, imageNaturalH]);
+  }, []);
+
+  const fitted = fittedCanvasBox(
+    containerWidth || imageNaturalW,
+    imageNaturalW,
+    imageNaturalH,
+    0,
+  );
+  const zoomedIn = viewScale != null && viewScale > fitted.scale + 0.02;
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) { setSelectedFieldId(null); }
@@ -86,14 +79,7 @@ export const TemplateCanvas: React.FC<Props> = ({
     }
   };
 
-  const initialScale = shouldFitPane
-    ? (paneFitScale ?? canvasState.scale)
-    : canvasState.scale;
-
-  // Remount TransformWrapper once fit scale is known so initialScale applies.
-  const transformKey = shouldFitPane
-    ? `fit-${isMobile ? 'mobile' : 'desktop'}-${paneFitScale ?? 'pending'}-${imageNaturalW}`
-    : `desktop-${imageNaturalW}`;
+  const transformKey = `fit-${fitted.scale.toFixed(4)}-${imageNaturalW}x${imageNaturalH}`;
 
   return (
     <div
@@ -102,23 +88,25 @@ export const TemplateCanvas: React.FC<Props> = ({
       style={{
         position: 'relative',
         width: '100%',
-        height: 600,
-        overflow: 'hidden',
+        height: fitted.height,
+        overflow: 'visible',
         ['--tas-aspect-ratio' as string]: `${imageNaturalW}/${imageNaturalH}`,
       }}
     >
       <TransformWrapper
         key={transformKey}
-        initialScale={initialScale}
-        initialPositionX={shouldFitPane ? 0 : canvasState.positionX}
-        initialPositionY={shouldFitPane ? 0 : canvasState.positionY}
-        minScale={0.2}
+        initialScale={fitted.scale}
+        initialPositionX={0}
+        initialPositionY={0}
+        minScale={fitted.scale}
         maxScale={5}
         limitToBounds={false}
-        centerOnInit
+        centerOnInit={false}
         wheel={{ disabled: true }}
         pinch={{ disabled: !isMobile }}
+        panning={{ disabled: !zoomedIn, allowRightClickPan: false }}
         onTransformed={(ref) => {
+          setViewScale(ref.state.scale);
           setCanvasState({
             scale: ref.state.scale,
             positionX: ref.state.positionX,
@@ -127,18 +115,20 @@ export const TemplateCanvas: React.FC<Props> = ({
         }}
       >
         {({
-          zoomIn, zoomOut, centerView,
+          zoomIn, zoomOut, setTransform,
         }) => (
           <>
             {/* Zoom controls */}
             <div style={{
-              position: 'absolute',
+              position: 'sticky',
               top: 8,
-              right: 8,
               zIndex: 10,
+              height: 0,
               display: 'flex',
               flexDirection: 'column',
+              alignItems: 'flex-end',
               gap: 4,
+              paddingRight: 8,
             }}
             >
               {[
@@ -146,9 +136,7 @@ export const TemplateCanvas: React.FC<Props> = ({
                 { label: '−', action: () => zoomOut() },
                 {
                   label: '↺',
-                  action: () => centerView(
-                    shouldFitPane ? (paneFitScale ?? 1) : 1,
-                  ),
+                  action: () => setTransform(0, 0, fitted.scale, 0),
                 },
               ].map(({ label, action }) => (
                 <button
@@ -180,14 +168,14 @@ export const TemplateCanvas: React.FC<Props> = ({
                 padding: '1px 3px',
               }}
               >
-                {Math.round(canvasState.scale * 100)}%
+                {Math.round((viewScale ?? fitted.scale) * 100)}%
               </div>
             </div>
 
             <TransformComponent
               wrapperStyle={{ width: '100%', height: '100%' }}
               contentStyle={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
               }}
               contentClass="tas-template-canvas__transform-content"
             >

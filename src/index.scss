@@ -761,31 +761,6 @@
     padding: 8px !important;
   }
 
-  .tas-template-canvas {
-    width: 100%;
-    aspect-ratio: var(--tas-aspect-ratio);
-    height: auto !important;
-    min-height: 240px;
-    overflow: hidden;
-  }
-
-  // react-zoom-pan-pinch needs a definite parent height; height: 100% collapses
-  // when the outer container only has height: auto with no aspect-ratio box.
-  .tas-template-canvas .react-transform-wrapper {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .tas-template-canvas .react-transform-component,
-  .tas-template-canvas .tas-template-canvas__transform-content {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .tas-template-canvas__transform-content {
-    padding: 8px !important;
-  }
-
   .tas-submission-pdf-viewer {
     max-width: 100%;
     overflow-x: hidden;
@@ -1023,14 +998,18 @@
   overflow-y: auto;
 }
 
+.tas-template-canvas .react-transform-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
 .tas-template-canvas--fit-pane {
-  height: 100% !important;
   min-height: 0;
 }
 
 @media (width >= 768px) {
   .curie-left-scroll:has(.tas-template-canvas--fit-pane) {
-    overflow: hidden;
+    overflow-y: auto;
   }
 }
 
