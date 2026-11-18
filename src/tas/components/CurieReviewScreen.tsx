@@ -15,6 +15,7 @@ import { CurieReviewList } from './CurieReviewList';
 import { CurieReviewPending } from './CurieReviewPending';
 import { CurieStarRating } from './CurieStarRating';
 import { AssignmentForm } from './AssignmentForm';
+import { ConfirmEditAssignmentModal } from './ConfirmEditAssignmentModal';
 import { PdfPoller } from './PdfPoller';
 import {
   CAP_REACHED_MESSAGE,
@@ -22,6 +23,7 @@ import {
   learnerVerdictLabel,
   orderFieldFeedback,
 } from '../utils/curieReview';
+import { hasMissingRequiredFields } from '../utils/activeFields';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
 import type {
   LearnerCurieReview,
@@ -83,6 +85,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const [editing, setEditing] = useState(false);
   const [previewingDraft, setPreviewingDraft] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(formData);
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
 
@@ -97,6 +100,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
       setEditing(false);
       setPreviewingDraft(false);
       setClearConfirmOpen(false);
+      setEditConfirmOpen(false);
     }
   }, [
     pending,
@@ -161,6 +165,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     setEditing(false);
     setPreviewingDraft(false);
     setClearConfirmOpen(false);
+    setEditConfirmOpen(false);
   };
 
   const clearDraft = () => {
@@ -168,17 +173,16 @@ export const CurieReviewScreen: React.FC<Props> = ({
     setClearConfirmOpen(false);
   };
 
+  const requestOpenEdit = () => {
+    setEditConfirmOpen(true);
+  };
+
   const confirmOpenEdit = () => {
-    if (
-      window.confirm(
-        'Editing will let you revise your answers and resubmit for a new review. Continue?',
-      )
-    ) {
-      if (onEditAssignment) {
-        onEditAssignment();
-      } else {
-        openEdit();
-      }
+    setEditConfirmOpen(false);
+    if (onEditAssignment) {
+      onEditAssignment();
+    } else {
+      openEdit();
     }
   };
 
@@ -220,12 +224,14 @@ export const CurieReviewScreen: React.FC<Props> = ({
     <button
       type="button"
       className={className}
-      onClick={confirmOpenEdit}
+      onClick={requestOpenEdit}
       disabled={isSaving}
     >
       Edit Assignment
     </button>
   );
+
+  const submitBlocked = isSaving || hasMissingRequiredFields(template, draft);
 
   let leftActions: React.ReactNode = null;
   if (editing) {
@@ -243,7 +249,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
           type="button"
           className="curie-edit-submit"
           onClick={() => onRequestSubmit(draft)}
-          disabled={isSaving}
+          disabled={submitBlocked}
         >
           {isSaving ? 'Submitting…' : 'Submit'}
         </button>
@@ -268,7 +274,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     <div className="curie-review-root">
       <header className="curie-review-header">
         <button type="button" className="curie-mfe-back" onClick={onBack}>
-          {historical ? '← Back to history' : '← Back to course'}
+          {historical ? '← Back to assignment' : '← Back to course'}
         </button>
         <h2>
           {title}
@@ -309,11 +315,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
               )}
             </div>
           )}
-          {!historical && (
-            <Link className="curie-history-link" to={historyHref}>
-              View Submission History
-            </Link>
-          )}
+          <Link className="curie-history-link" to={historyHref}>
+            View Submission History
+          </Link>
         </div>
       </header>
 
@@ -353,7 +357,9 @@ export const CurieReviewScreen: React.FC<Props> = ({
                   className="curie-edit-form"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    onRequestSubmit(draft);
+                    if (!hasMissingRequiredFields(template, draft)) {
+                      onRequestSubmit(draft);
+                    }
                   }}
                 >
                   <AssignmentForm
@@ -361,6 +367,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                     values={draft}
                     onChange={(fieldId, value) => setDraft((current) => ({ ...current, [fieldId]: value }))}
                     isMobile={isMobile}
+                    resubmissionMode
                   />
                 </form>
               ) : (
@@ -405,6 +412,14 @@ export const CurieReviewScreen: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmEditAssignmentModal
+        isOpen={editConfirmOpen}
+        isSaving={isSaving}
+        onClose={() => setEditConfirmOpen(false)}
+        onCancel={() => setEditConfirmOpen(false)}
+        onConfirm={confirmOpenEdit}
+      />
 
       {editing && (
         <ModalDialog

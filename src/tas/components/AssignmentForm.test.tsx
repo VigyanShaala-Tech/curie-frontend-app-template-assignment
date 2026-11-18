@@ -27,6 +27,13 @@ const makeTemplate = (fields: FormField[]): Template => ({
   updated_at: '',
 });
 
+const swotFields: FormField[] = [
+  { id: 'strength', label: 'Strengths', type: 'textarea', required: false },
+  { id: 'weakness', label: 'Weaknesses', type: 'textarea', required: false },
+  { id: 'opportunity', label: 'Opportunities', type: 'textarea', required: false },
+  { id: 'threat', label: 'Threats', type: 'textarea', required: false },
+];
+
 describe('AssignmentForm', () => {
   it('renders a normal Name & College text field and reuses maxChars', async () => {
     const user = userEvent.setup();
@@ -48,6 +55,56 @@ describe('AssignmentForm', () => {
     expect(screen.getByText('5/20').id).toBe('assignment-field-identity-count');
     await user.type(input, ' J');
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it('keeps first-time submission on the step-by-step UI without Earlier answers', async () => {
+    const user = userEvent.setup();
+    render(
+      <AssignmentForm
+        template={makeTemplate(swotFields)}
+        values={{
+          strength: 'Curious',
+          weakness: 'Planning',
+          opportunity: 'AI demand',
+          threat: 'Time',
+        }}
+        onChange={() => undefined}
+        isMobile
+      />,
+    );
+
+    expect(screen.getByText('Step 1 of 4')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Strengths' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Weaknesses →' }));
+    expect(screen.getByRole('heading', { name: 'Weaknesses' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '← Strengths' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
+    expect(screen.queryByText('Curious')).toBeNull();
+  });
+
+  it('renders template text response fields as auto-growing textareas, not single-line inputs', () => {
+    render(
+      <AssignmentForm
+        template={makeTemplate([{
+          id: 'strength',
+          label: 'Strengths',
+          type: 'text',
+          required: false,
+        }])}
+        values={{
+          strength: 'Strong foundation in programming languages (C, C++, Java, Python). Good problem solving.',
+        }}
+        onChange={() => undefined}
+        isMobile={false}
+      />,
+    );
+    const control = screen.getByRole('textbox', { name: 'Strengths' });
+    expect(control.tagName).toBe('TEXTAREA');
+    expect(control.classList.contains('assignment-field__textarea--auto')).toBe(true);
+    expect(control.classList.contains('assignment-field__textarea--from-text')).toBe(true);
   });
 
   it('renders Career Exploration as progressive desktop table rows and mobile row cards', async () => {
@@ -77,8 +134,8 @@ describe('AssignmentForm', () => {
     expect(screen.getByRole('table')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Option 1' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Option 2 →' }));
-    expect(screen.getByText('Engineer')).toBeTruthy();
-    expect(screen.getByText('Analysis')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Option 2' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
 
     rerender(<AssignmentForm template={makeTemplate(fields)} values={{}} onChange={() => undefined} isMobile />);
     expect(screen.queryByRole('table')).toBeNull();
@@ -100,38 +157,69 @@ describe('AssignmentForm', () => {
     expect(screen.getByText('Step 1 of 2')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Explore' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Build →' }));
-    expect(screen.getByText('Research roles')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Build' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '← Explore' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
   });
 
-  it('keeps the current legacy SWOT field focused and the previous full answer readable', async () => {
+  it('shows all saved SWOT responses with Edit in resubmission mode', async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const onChange = jest.fn();
+    const { rerender } = render(
       <AssignmentForm
-        template={makeTemplate([
-          {
-            id: 'strength', label: 'Strengths', type: 'textarea', required: false,
-          },
-          {
-            id: 'weakness', label: 'Weaknesses', type: 'textarea', required: false,
-          },
-        ])}
-        values={{ strength: 'Curious', weakness: 'Planning' }}
-        onChange={() => undefined}
+        template={makeTemplate(swotFields)}
+        values={{
+          strength: 'Curious',
+          weakness: 'Planning',
+          opportunity: 'AI demand',
+          threat: 'Time pressure',
+        }}
+        onChange={onChange}
         isMobile
+        resubmissionMode
       />,
     );
-    expect(screen.getByRole('heading', { name: 'Strengths' })).toBeTruthy();
-    expect(screen.queryByRole('textbox', { name: 'Weaknesses' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Weaknesses →' }));
-    expect(screen.getByRole('textbox', { name: 'Weaknesses' })).toBeTruthy();
+
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
     expect(screen.getByText('Curious')).toBeTruthy();
-    const earlier = container.querySelector('details.assignment-earlier-card');
-    expect(earlier?.hasAttribute('open')).toBe(true);
-    expect(
-      screen.getByRole('textbox', { name: 'Weaknesses' }).previousElementSibling?.classList
-        .contains('assignment-field__label--sr-only'),
-    ).toBe(true);
+    expect(screen.getByText('Planning')).toBeTruthy();
+    expect(screen.getByText('AI demand')).toBeTruthy();
+    expect(screen.getByText('Time pressure')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: 'Weaknesses →' })).toBeNull();
+
+    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    expect(screen.getByRole('heading', { name: 'Strengths' })).toBeTruthy();
+    const strength = screen.getByRole('textbox', { name: 'Strengths' }) as HTMLTextAreaElement;
+    expect(strength.value).toBe('Curious');
+    expect(screen.getByRole('button', { name: '← Back to responses' })).toBeTruthy();
+
+    await user.clear(strength);
+    await user.type(strength, 'Updated strength');
+    expect(onChange).toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '← Back to responses' }));
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
+    expect(screen.getByText('Planning')).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Strengths' })).toBeNull();
+
+    rerender(
+      <AssignmentForm
+        template={makeTemplate(swotFields)}
+        values={{
+          strength: 'Updated strength',
+          weakness: 'Planning',
+          opportunity: 'AI demand',
+          threat: 'Time pressure',
+        }}
+        onChange={onChange}
+        isMobile
+        resubmissionMode
+        readOnly
+      />,
+    );
+    expect(screen.getByText('Updated strength')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('gives a required radio group an accessible question name', () => {
@@ -154,7 +242,18 @@ describe('AssignmentForm', () => {
     expect(screen.getByRole('radio', { name: 'Research' }).getAttribute('required')).not.toBeNull();
   });
 
-  it('shows template instructions and associates field guidance with the control', () => {
+  it('shows the full template instructional stack above the active section control', () => {
+    const sectionInstruction = [
+      'Talk to family, friends, mentors, or peers.',
+      'Using the guiding questions & reflect with your friends and with CURIE',
+      'Think of previous life experiences and identify your personal factors.',
+      'Note: Think of every factor that is relevant to the goal you are working on.',
+      '',
+      'Guiding Questions',
+      'What do you do well without much effort?',
+      'When do you feel confident or in control?',
+    ].join('\n');
+
     render(
       <AssignmentForm
         template={makeTemplate([{
@@ -163,8 +262,9 @@ describe('AssignmentForm', () => {
           type: 'textarea',
           required: true,
           section: 'Career impact',
-          sectionInstruction: 'Think about people, communities, industries and the environment.',
-          guidance: 'Explain who benefits and how their lives could change.',
+          sectionInstruction,
+          guidance: 'Write 3–5 points relevant to your goal',
+          placeholder: 'Explain who benefits and how their lives could change.',
         }])}
         values={{}}
         onChange={() => undefined}
@@ -172,9 +272,67 @@ describe('AssignmentForm', () => {
       />,
     );
 
-    expect(screen.getByText('Think about people, communities, industries and the environment.')).toBeTruthy();
-    const guidance = screen.getByText('Explain who benefits and how their lives could change.');
+    expect(screen.getByText(/Talk to family, friends, mentors, or peers/)).toBeTruthy();
+    expect(screen.getByText(/Guiding Questions/)).toBeTruthy();
+    expect(screen.getByText(/What do you do well without much effort/)).toBeTruthy();
+    const guidance = screen.getByText('Write 3–5 points relevant to your goal');
+    const placeholderHelp = screen.getByText(
+      'Explain who benefits and how their lives could change.',
+    );
     const input = screen.getByRole('textbox', { name: 'Who benefits from this career?' });
-    expect(input.getAttribute('aria-describedby')).toContain(guidance.id);
+    const describedBy = input.getAttribute('aria-describedby') || '';
+    expect(describedBy).toContain(guidance.id);
+    expect(describedBy).toContain(placeholderHelp.id);
+    expect(input.getAttribute('placeholder')).toBe(
+      'Explain who benefits and how their lives could change.',
+    );
+  });
+
+  it('keeps instructional content on section Edit and out of the resubmission overview', async () => {
+    const user = userEvent.setup();
+    const instructionalFields: FormField[] = [
+      {
+        id: 'alpha',
+        label: 'Alpha',
+        type: 'textarea',
+        required: false,
+        sectionInstruction: 'Alpha section instructions for learners.',
+        guidance: 'Write clear Alpha points.',
+        placeholder: 'Alpha placeholder guidance.',
+      },
+      {
+        id: 'beta',
+        label: 'Beta',
+        type: 'textarea',
+        required: false,
+        sectionInstruction: 'Beta section instructions for learners.',
+        guidance: 'Write clear Beta points.',
+        placeholder: 'Beta placeholder guidance.',
+      },
+    ];
+
+    render(
+      <AssignmentForm
+        template={makeTemplate(instructionalFields)}
+        values={{ alpha: 'Alpha answer', beta: 'Beta answer' }}
+        onChange={() => undefined}
+        isMobile
+        resubmissionMode
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
+    expect(screen.getByText('Alpha answer')).toBeTruthy();
+    expect(screen.getByText('Beta answer')).toBeTruthy();
+    expect(screen.queryByText('Alpha section instructions for learners.')).toBeNull();
+    expect(screen.queryByText('Write clear Alpha points.')).toBeNull();
+    expect(screen.queryByText('Alpha placeholder guidance.')).toBeNull();
+
+    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    expect(screen.getByRole('heading', { name: 'Alpha' })).toBeTruthy();
+    expect(screen.getByText('Alpha section instructions for learners.')).toBeTruthy();
+    expect(screen.getByText('Write clear Alpha points.')).toBeTruthy();
+    expect(screen.getByText('Alpha placeholder guidance.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
   });
 });

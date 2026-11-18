@@ -104,12 +104,58 @@
   background: #FFFFFF;
 }
 
-.assignment-earlier-card > summary {
+.assignment-earlier-card > summary,
+.assignment-earlier-card__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 12px;
   color: #172554;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  list-style: none;
+}
+
+.assignment-earlier-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.assignment-earlier-card__title {
+  min-width: 0;
+  flex: 1;
+}
+
+.assignment-earlier-card__edit {
+  flex-shrink: 0;
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.assignment-earlier-card__edit:hover {
+  background: #F8FAFC;
+}
+
+.assignment-earlier-card--overview .assignment-earlier-card__summary {
+  cursor: default;
+}
+
+.assignment-earlier-card__preview-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.assignment-earlier-card--overview .assignment-earlier-answer-list {
+  padding: 6px 0 0;
 }
 
 .assignment-earlier-answer-list {
@@ -143,7 +189,7 @@
 }
 
 .assignment-current {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #C7D2E1;
   border-radius: 12px;
   background: #FFFFFF;
@@ -225,12 +271,17 @@
   color: #B91C1C;
 }
 
-.assignment-field__guidance {
+.assignment-field__guidance,
+.assignment-field__placeholder {
   margin: -1px 0 8px;
   color: #64748B;
   font-size: 12px;
   line-height: 1.45;
   white-space: pre-line;
+}
+
+.assignment-field__guidance + .assignment-field__placeholder {
+  margin-top: -4px;
 }
 
 .assignment-field input:not([type='checkbox'], [type='radio']),
@@ -248,9 +299,22 @@
 
 .assignment-field textarea {
   min-height: 118px;
-  max-height: 280px;
-  resize: vertical;
   line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.assignment-field textarea.assignment-field__textarea--auto {
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  resize: none;
+  field-sizing: content;
+}
+
+.assignment-field textarea.assignment-field__textarea--from-text {
+  min-height: 118px;
 }
 
 .assignment-field__count {
@@ -426,6 +490,10 @@
 
   .assignment-field textarea {
     min-height: 132px;
+  }
+
+  .assignment-field textarea.assignment-field__textarea--auto {
+    max-height: none;
   }
 
   .assignment-step-actions {
@@ -1277,6 +1345,13 @@
   flex: 2;
   background: #69AB4A;
   color: #FFFFFF;
+}
+
+.curie-edit-submit:disabled {
+  background: #9CA3AF;
+  color: #FFFFFF;
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .curie-field-feedback-label {

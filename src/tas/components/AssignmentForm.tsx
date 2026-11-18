@@ -1,5 +1,5 @@
 import React, {
-  useEffect, useMemo, useRef, useState,
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import type { FormField, Template } from '../types';
 import { getActiveFields } from '../utils/activeFields';
@@ -14,6 +14,11 @@ interface Props {
   onChange: (fieldId: string, value: string) => void;
   isMobile: boolean;
   readOnly?: boolean;
+  /**
+   * When true, show the saved-responses overview with per-section Edit
+   * (reattempt / reopen). First-time drafts keep the step-by-step UI.
+   */
+  resubmissionMode?: boolean;
   onActiveFieldChange?: (fieldId: string | null) => void;
 }
 
@@ -29,6 +34,40 @@ interface FieldControlProps {
 
 const normalized = (value: string) => value.trim().toLocaleLowerCase();
 
+const syncTextareaHeight = (el: HTMLTextAreaElement | null) => {
+  if (!el) {
+    return;
+  }
+  // Reset to auto so scrollHeight reflects wrapped content, then expand.
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+};
+
+const AutoResizeTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = ({
+  value,
+  onInput,
+  ...rest
+}) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    syncTextareaHeight(ref.current);
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      {...rest}
+      value={value}
+      onInput={(event) => {
+        syncTextareaHeight(event.currentTarget);
+        onInput?.(event);
+      }}
+    />
+  );
+};
+
 const FieldControl: React.FC<FieldControlProps> = ({
   field,
   value,
@@ -42,8 +81,12 @@ const FieldControl: React.FC<FieldControlProps> = ({
   const countId = `${id}-count`;
   const warningId = `${id}-capacity-warning`;
   const guidanceId = `${id}-guidance`;
+  const placeholderId = `${id}-placeholder`;
+  const guidanceText = field.guidance?.trim() || '';
+  const placeholderText = field.placeholder?.trim() || '';
   const describedBy = [
-    field.guidance?.trim() ? guidanceId : null,
+    guidanceText ? guidanceId : null,
+    placeholderText ? placeholderId : null,
     field.maxChars != null ? countId : null,
     capacityFull ? warningId : null,
   ].filter(Boolean).join(' ') || undefined;
@@ -108,11 +151,25 @@ const FieldControl: React.FC<FieldControlProps> = ({
         </div>
       </fieldset>
     );
-  } else if (field.type === 'textarea') {
+  } else if (field.type === 'number' || field.type === 'date') {
     control = (
-      <textarea
+      <input
         {...common}
-        rows={4}
+        type={field.type}
+        placeholder={field.placeholder}
+      />
+    );
+  } else if (field.type === 'textarea' || field.type === 'text') {
+    // Template SWOT/response fields are often typed as `text` but still need
+    // multi-line wrap + vertical auto-grow (single-line <input> truncates).
+    control = (
+      <AutoResizeTextarea
+        {...common}
+        className={
+          field.type === 'text'
+            ? 'assignment-field__textarea--auto assignment-field__textarea--from-text'
+            : 'assignment-field__textarea--auto'
+        }
         maxLength={field.maxChars}
         placeholder={field.placeholder}
       />
@@ -121,8 +178,8 @@ const FieldControl: React.FC<FieldControlProps> = ({
     control = (
       <input
         {...common}
-        type={field.type === 'number' || field.type === 'date' ? field.type : 'text'}
-        maxLength={field.type === 'text' ? field.maxChars : undefined}
+        type="text"
+        maxLength={field.maxChars}
         placeholder={field.placeholder}
       />
     );
@@ -136,8 +193,11 @@ const FieldControl: React.FC<FieldControlProps> = ({
           {field.required && <span aria-hidden="true"> *</span>}
         </div>
       )}
-      {field.guidance?.trim() && (
+      {guidanceText && (
         <p id={guidanceId} className="assignment-field__guidance">{field.guidance}</p>
+      )}
+      {placeholderText && (
+        <p id={placeholderId} className="assignment-field__placeholder">{field.placeholder}</p>
       )}
       {control}
       {field.maxChars != null && (field.type === 'text' || field.type === 'textarea') && (
@@ -178,6 +238,7 @@ export const AssignmentForm: React.FC<Props> = ({
   onChange,
   isMobile,
   readOnly = false,
+  resubmissionMode = false,
   onActiveFieldChange,
 }) => {
   const [capacityFull, setCapacityFull] = useState<Record<string, boolean>>({});
@@ -186,20 +247,53 @@ export const AssignmentForm: React.FC<Props> = ({
     [template],
   );
   const [activeStepKey, setActiveStepKey] = useState<string | null>(steps[0]?.key ?? null);
+  /** In resubmission mode, null means the saved-responses overview. */
+  const [resubmissionEditKey, setResubmissionEditKey] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const requestedIndex = steps.findIndex((step) => step.key === activeStepKey);
   const activeIndex = requestedIndex >= 0 ? requestedIndex : 0;
   const activeStep = steps[activeIndex];
+  const showResubmissionOverview = resubmissionMode
+    && (resubmissionEditKey == null || readOnly);
 
   useEffect(() => {
+    if (!resubmissionMode) {
+      setResubmissionEditKey(null);
+    }
+  }, [resubmissionMode]);
+
+  // Preview (read-only) always shows the full responses overview.
+  useEffect(() => {
+    if (readOnly) {
+      setResubmissionEditKey(null);
+    }
+  }, [readOnly]);
+
+  useEffect(() => {
+    if (showResubmissionOverview) {
+      onActiveFieldChange?.(null);
+      return;
+    }
     onActiveFieldChange?.(activeStep?.fields[0]?.id ?? null);
-  }, [activeStep, onActiveFieldChange]);
+  }, [activeStep, onActiveFieldChange, showResubmissionOverview]);
 
   const navigateTo = (index: number) => {
     const step = steps[index];
     if (!step) { return; }
     setActiveStepKey(step.key);
     window.requestAnimationFrame(() => headingRef.current?.focus());
+  };
+
+  const openResubmissionSection = (index: number) => {
+    const step = steps[index];
+    if (!step) { return; }
+    setActiveStepKey(step.key);
+    setResubmissionEditKey(step.key);
+    window.requestAnimationFrame(() => headingRef.current?.focus());
+  };
+
+  const returnToResubmissionOverview = () => {
+    setResubmissionEditKey(null);
   };
 
   const updateField = (field: FormField, candidate: string) => {
@@ -227,7 +321,11 @@ export const AssignmentForm: React.FC<Props> = ({
     onChange(field.id, next);
   };
 
-  if (!activeStep) {
+  if (!activeStep && !showResubmissionOverview) {
+    return <div className="assignment-form assignment-form--empty">No assignment fields are configured.</div>;
+  }
+
+  if (steps.length === 0) {
     return <div className="assignment-form assignment-form--empty">No assignment fields are configured.</div>;
   }
 
@@ -244,103 +342,136 @@ export const AssignmentForm: React.FC<Props> = ({
     />
   );
 
-  const renderCurrentStep = () => {
-    const hideSingleLabel = activeStep.fields.length === 1
-      && normalized(activeStep.fields[0].label) === normalized(activeStep.title);
+  const renderCurrentStep = (step: AssignmentStep, stepIndex: number) => {
+    const hideSingleLabel = step.fields.length === 1
+      && normalized(step.fields[0].label) === normalized(step.title);
 
-    if (activeStep.displayStyle === 'table') {
+    if (step.displayStyle === 'table') {
       if (isMobile) {
-        return <div className="assignment-table-row-card">{activeStep.fields.map((field) => renderField(field))}</div>;
+        return <div className="assignment-table-row-card">{step.fields.map((field) => renderField(field))}</div>;
       }
       return (
         <div className="assignment-table-wrap">
           <table className="assignment-table">
             <thead>
-              <tr>{activeStep.fields.map((field) => <th key={field.id}>{field.tableColumn || field.label}</th>)}</tr>
+              <tr>{step.fields.map((field) => <th key={field.id}>{field.tableColumn || field.label}</th>)}</tr>
             </thead>
             <tbody>
-              <tr>{activeStep.fields.map((field) => <td key={field.id}>{renderField(field, true)}</td>)}</tr>
+              <tr>{step.fields.map((field) => <td key={field.id}>{renderField(field, true)}</td>)}</tr>
             </tbody>
           </table>
         </div>
       );
     }
 
-    if (activeStep.displayStyle === 'stages') {
+    if (step.displayStyle === 'stages') {
       return (
         <div className="assignment-current-stage">
-          <span className="assignment-current-stage__number">{activeStep.ordinal ?? activeIndex + 1}</span>
-          <div className="assignment-stage-fields">{activeStep.fields.map((field) => renderField(field, hideSingleLabel))}</div>
+          <span className="assignment-current-stage__number">{step.ordinal ?? stepIndex + 1}</span>
+          <div className="assignment-stage-fields">{step.fields.map((field) => renderField(field, hideSingleLabel))}</div>
         </div>
       );
     }
 
     return (
       <div className="assignment-cards">
-        {activeStep.fields.map((field) => renderField(field, hideSingleLabel))}
+        {step.fields.map((field) => renderField(field, hideSingleLabel))}
       </div>
     );
   };
 
-  const earlierSteps = steps.slice(0, activeIndex);
-  return (
-    <div className={`assignment-form${isMobile ? ' assignment-form--mobile' : ''}`} aria-label="Assignment form">
-      <div className="assignment-progress">
-        <div className="assignment-progress__meta">Step {activeIndex + 1} of {steps.length}</div>
-      </div>
+  if (showResubmissionOverview) {
+    return (
+      <div className={`assignment-form${isMobile ? ' assignment-form--mobile' : ''}`} aria-label="Assignment form">
+        <div className="assignment-progress">
+          <div className="assignment-progress__meta">Step {steps.length} of {steps.length}</div>
+        </div>
 
-      {earlierSteps.length > 0 && (
         <section className="assignment-earlier" aria-labelledby="assignment-earlier-heading">
           <div className="assignment-earlier__heading">
             <h3 id="assignment-earlier-heading">Earlier answers</h3>
-            <p>Read your previous responses while writing this section.</p>
+            <p>Read your previous responses while updating your assignment.</p>
           </div>
-          {earlierSteps.map((step, index) => (
-            <details
-              className="assignment-earlier-card"
-              key={step.key}
-              open={index === earlierSteps.length - 1}
-            >
-              <summary>{step.title}</summary>
-              <AnswerList step={step} values={values} />
-            </details>
+          {steps.map((step, index) => (
+            <div className="assignment-earlier-card assignment-earlier-card--overview" key={step.key}>
+              <div className="assignment-earlier-card__summary">
+                <div className="assignment-earlier-card__preview-block">
+                  <div className="assignment-earlier-card__title">{step.title}</div>
+                  <AnswerList step={step} values={values} />
+                </div>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="assignment-earlier-card__edit"
+                    onClick={() => openResubmissionSection(index)}
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </section>
-      )}
+      </div>
+    );
+  }
+
+  const editingStep = resubmissionMode && resubmissionEditKey
+    ? (steps.find((step) => step.key === resubmissionEditKey) ?? activeStep)
+    : activeStep;
+  const editingIndex = steps.findIndex((step) => step.key === editingStep.key);
+
+  return (
+    <div className={`assignment-form${isMobile ? ' assignment-form--mobile' : ''}`} aria-label="Assignment form">
+      <div className="assignment-progress">
+        <div className="assignment-progress__meta">Step {editingIndex + 1} of {steps.length}</div>
+      </div>
 
       <section
         id="assignment-current-section"
         className="assignment-current"
       >
         <div className="assignment-current__heading">
-          {normalized(activeStep.sectionTitle) !== normalized(activeStep.title) && (
-            <div className="assignment-current__eyebrow">{activeStep.sectionTitle}</div>
+          {normalized(editingStep.sectionTitle) !== normalized(editingStep.title) && (
+            <div className="assignment-current__eyebrow">{editingStep.sectionTitle}</div>
           )}
-          <h2 id="assignment-current-heading" ref={headingRef} tabIndex={-1}>{activeStep.title}</h2>
-          {activeStep.instruction && (
-            <p className="assignment-current__instruction">{activeStep.instruction}</p>
+          <h2 id="assignment-current-heading" ref={headingRef} tabIndex={-1}>{editingStep.title}</h2>
+          {editingStep.instruction && (
+            <p className="assignment-current__instruction">{editingStep.instruction}</p>
           )}
         </div>
-        <div className="assignment-current__body">{renderCurrentStep()}</div>
+        <div className="assignment-current__body">{renderCurrentStep(editingStep, editingIndex)}</div>
       </section>
 
       <div className="assignment-step-actions">
-        <button
-          type="button"
-          className="assignment-step-actions__secondary"
-          disabled={activeIndex === 0}
-          onClick={() => navigateTo(activeIndex - 1)}
-        >
-          {activeIndex > 0 ? `← ${steps[activeIndex - 1].title}` : 'Back'}
-        </button>
-        {activeIndex < steps.length - 1 && (
+        {resubmissionMode ? (
           <button
             type="button"
-            className="assignment-step-actions__primary"
-            onClick={() => navigateTo(activeIndex + 1)}
+            className="assignment-step-actions__secondary"
+            onClick={returnToResubmissionOverview}
           >
-            {`${steps[activeIndex + 1].title} →`}
+            ← Back to responses
           </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="assignment-step-actions__secondary"
+              disabled={activeIndex === 0}
+              onClick={() => navigateTo(activeIndex - 1)}
+            >
+              {activeIndex > 0 ? `← ${steps[activeIndex - 1].title}` : 'Back'}
+            </button>
+            {activeIndex < steps.length - 1 && (
+              <button
+                type="button"
+                className="assignment-step-actions__primary"
+                onClick={() => navigateTo(activeIndex + 1)}
+              >
+                {`${steps[activeIndex + 1].title} →`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

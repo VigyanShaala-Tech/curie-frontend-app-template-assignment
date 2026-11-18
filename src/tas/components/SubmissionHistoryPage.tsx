@@ -4,12 +4,11 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTasStore } from '../store/tasStore';
 import { submissionsApi } from '../services/api';
 import { loadOwnedSubmission } from '../services/ownedSubmission';
 import { LearnerAttemptHistory } from './LearnerAttemptHistory';
-import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import type { SubmissionVersion } from '../types';
 import { buildStudentMfeContext, decodeUsageKeyParam } from '../utils/studentMfeContext';
 
@@ -62,14 +61,14 @@ export const SubmissionHistoryPage: React.FC = () => {
         <button
           type="button"
           className="curie-mfe-back"
-          onClick={() => navigateBackToAssignment(mfeContext)}
+          onClick={() => navigate(
+            `/submission/${encodeURIComponent(usageKey)}`,
+            { replace: true },
+          )}
         >
-          ← Back to course
+          ← Back to assignment
         </button>
         <h2>Submission History</h2>
-        <Link className="curie-history-link" to={`/submission/${encodeURIComponent(usageKey)}`}>
-          Back to assignment
-        </Link>
       </header>
       <div className="curie-history-page-body">
         {loading && <div>Loading history…</div>}

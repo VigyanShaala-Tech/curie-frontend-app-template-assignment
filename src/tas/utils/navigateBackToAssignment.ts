@@ -30,22 +30,26 @@ export interface NavigateBackOptions {
   extraHistoryEntries?: number;
 }
 
-/** Navigate back to the LMS assignment block (history first, jump_to fallback). */
+/**
+ * Leave the MFE for the LMS courseware assignment unit.
+ * Prefer jump_to over history.back() so Back never re-enters Submission History
+ * after assignment ↔ history in-app navigation (avoids a back-stack loop).
+ */
 export function navigateBackToAssignment(
   mfeContext: MfeContext | null,
   options?: NavigateBackOptions,
 ): void {
   const steps = 1 + (options?.extraHistoryEntries ?? 0);
 
-  if (canUseBrowserHistoryBack()) {
-    window.history.go(-steps);
-    return;
-  }
-
   if (hasJumpToContext(mfeContext)) {
     window.location.assign(
       buildAssignmentJumpToUrl(mfeContext.courseId.trim(), mfeContext.usageKey.trim()),
     );
+    return;
+  }
+
+  if (canUseBrowserHistoryBack()) {
+    window.history.go(-steps);
     return;
   }
 

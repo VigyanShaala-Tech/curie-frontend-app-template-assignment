@@ -244,7 +244,10 @@ export const HistoricalReviewPage: React.FC = () => {
           isMobile={isMobile}
           historical
           attemptNumber={versionSummary?.attempt_number}
-          onBack={() => navigate(historyHref)}
+          onBack={() => navigate(
+            `/submission/${encodeURIComponent(usageKey)}`,
+            { replace: true },
+          )}
           onRequestSubmit={() => undefined}
           reviewLabel={humanStructuredReview ? 'Instructor Review' : 'Curie Review'}
         />

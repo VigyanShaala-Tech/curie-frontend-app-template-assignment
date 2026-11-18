@@ -15,3 +15,13 @@ export function isFieldEmpty(
 ): boolean {
   return !(formData[fieldId] ?? '').trim();
 }
+
+/** True when any active required field is empty (optional fields ignored). */
+export function hasMissingRequiredFields(
+  template: Template | null | undefined,
+  formData: Record<string, string>,
+): boolean {
+  return getActiveFields(template).some(
+    (field) => field.required && isFieldEmpty(formData, field.id),
+  );
+}

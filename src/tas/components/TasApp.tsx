@@ -32,7 +32,12 @@ import { usePendingReviewPolling } from '../hooks/usePendingReviewPolling';
 import { submissionsApi, formatApiError } from '../services/api';
 import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
-import { getActiveFields, isFieldEmpty } from '../utils/activeFields';
+import {
+  getActiveFields,
+  hasMissingRequiredFields,
+  isFieldEmpty,
+} from '../utils/activeFields';
+import { isResubmissionForm } from '../utils/resubmissionForm';
 import {
   resolveFieldLayout,
   FIELD_TEXT_FONT_FAMILY,
@@ -801,6 +806,9 @@ export const TasApp: React.FC = () => {
     transition: 'opacity 0.15s',
     whiteSpace: 'nowrap',
   };
+  const submitBlocked = isSaving
+    || !submission
+    || hasMissingRequiredFields(selectedTemplate, formData);
 
   return (
     <div className="d-flex flex-column h-100 tas-submission-root">
@@ -932,12 +940,13 @@ export const TasApp: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSubmit()}
-              disabled={isSaving || !submission}
+              disabled={submitBlocked}
               style={{
                 ...btnBase,
-                background: SUBMIT_GREEN,
+                background: submitBlocked ? '#9CA3AF' : SUBMIT_GREEN,
                 color: '#fff',
-                opacity: isSaving || !submission ? 0.5 : 1,
+                opacity: submitBlocked ? 0.7 : 1,
+                cursor: submitBlocked ? 'not-allowed' : 'pointer',
               }}
             >
               Submit
@@ -983,6 +992,7 @@ export const TasApp: React.FC = () => {
                   values={formData}
                   onChange={setFormValue}
                   isMobile={isMobile}
+                  resubmissionMode={isResubmissionForm(submission)}
                 />
               </div>
             )}

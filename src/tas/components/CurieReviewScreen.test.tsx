@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { IntlProvider } from 'react-intl';
@@ -124,11 +124,34 @@ function renderScreen(
   );
 }
 
-describe('CurieReviewScreen', () => {
-  beforeEach(() => {
-    window.confirm = jest.fn(() => true);
-  });
+async function openEditAssignment() {
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Edit Assignment' }),
+  );
+  expect(
+    screen.getByText(
+      /Editing will let you revise your answers and resubmit for a new review/,
+    ),
+  ).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+  expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
+}
 
+async function openResubmissionSection(sectionTitle: string) {
+  const title = screen.getAllByText(sectionTitle).find(
+    (node) => node.classList.contains('assignment-earlier-card__title'),
+  );
+  expect(title).toBeTruthy();
+  const card = (title as HTMLElement).closest('.assignment-earlier-card') as HTMLElement;
+  await userEvent.click(within(card).getByRole('button', { name: 'Edit' }));
+}
+
+async function openEditAssignmentSection(sectionTitle: string) {
+  await openEditAssignment();
+  await openResubmissionSection(sectionTitle);
+}
+
+describe('CurieReviewScreen', () => {
   it('asks the worksheet canvas to fit its desktop pane', () => {
     renderScreen();
     expect(
@@ -258,10 +281,7 @@ describe('CurieReviewScreen', () => {
     expect(
       screen.getAllByRole('button', { name: 'Edit Assignment' }),
     ).toHaveLength(1);
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    await openEditAssignmentSection('Goal');
     expect(screen.getByLabelText('Goal')).toBeTruthy();
     await userEvent.clear(screen.getByLabelText('Goal'));
     await userEvent.type(screen.getByLabelText('Goal'), 'A sharper STEM goal');
@@ -271,6 +291,21 @@ describe('CurieReviewScreen', () => {
         goal: 'A sharper STEM goal',
       }),
     );
+  });
+
+  it('keeps the review locked when the edit confirmation is cancelled', async () => {
+    renderScreen();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit Assignment' }),
+    );
+    expect(
+      screen.getByText(
+        /Editing will let you revise your answers and resubmit for a new review/,
+      ),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Goal')).toBeNull();
+    expect(screen.getByText('worksheet-canvas')).toBeTruthy();
   });
 
   it('replaces edit with the cap message', () => {
@@ -289,9 +324,7 @@ describe('CurieReviewScreen', () => {
 
   it('locks the worksheet when a rejected reattempt becomes pending', async () => {
     const view = renderScreen();
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignmentSection('Goal');
     expect(screen.getByLabelText('Goal')).toBeTruthy();
 
     view.rerender(
@@ -336,9 +369,7 @@ describe('CurieReviewScreen', () => {
         field_feedback: [],
       },
     });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignmentSection('Goal');
     expect(screen.getByLabelText('Goal')).toBeTruthy();
 
     view.rerender(
@@ -395,9 +426,7 @@ describe('CurieReviewScreen', () => {
         },
       },
     });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignmentSection('Goal');
     const goal = screen.getByLabelText('Goal') as HTMLTextAreaElement;
     await userEvent.clear(goal);
     await userEvent.type(goal, 'x'.repeat(40));
@@ -468,9 +497,7 @@ describe('CurieReviewScreen', () => {
   it('previews unsaved edits and preserves them when returning to edit', async () => {
     const onRequestSubmit = jest.fn();
     renderScreen({ onRequestSubmit, isMobile: true });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignmentSection('Goal');
     await userEvent.clear(screen.getByLabelText('Goal'));
     await userEvent.type(screen.getByLabelText('Goal'), 'A sharper STEM goal');
 
@@ -479,9 +506,16 @@ describe('CurieReviewScreen', () => {
     expect(canvas.getAttribute('data-form-data')).toContain(
       'A sharper STEM goal',
     );
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Field 1: Goal' })).toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('heading', { name: 'Earlier answers' }).closest('section') as HTMLElement)
+        .getAllByRole('button', { name: 'Edit' }).length,
+    ).toBeGreaterThan(0);
+    await openResubmissionSection('Goal');
     expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
       'A sharper STEM goal',
     );
@@ -495,26 +529,32 @@ describe('CurieReviewScreen', () => {
 
   it('keeps CURIE review visible while desktop edit and preview share the left panel', async () => {
     renderScreen({ isMobile: false });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignment();
 
-    expect(screen.getByLabelText('Goal')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
     expect(screen.getByText('Keep reflecting.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Preview' })).toBeTruthy();
     expect(screen.queryByText('Live preview')).toBeNull();
 
+    await openResubmissionSection('Goal');
     await userEvent.clear(screen.getByLabelText('Goal'));
     await userEvent.type(screen.getByLabelText('Goal'), 'Desktop draft goal');
     await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
     expect(screen.queryByLabelText('Goal')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
     expect(screen.getByText('worksheet-canvas').getAttribute('data-form-data')).toContain(
       'Desktop draft goal',
     );
     expect(screen.getByText('Keep reflecting.')).toBeTruthy();
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('heading', { name: 'Earlier answers' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('heading', { name: 'Earlier answers' }).closest('section') as HTMLElement)
+        .getAllByRole('button', { name: 'Edit' }).length,
+    ).toBeGreaterThan(0);
+    await openResubmissionSection('Goal');
     expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
       'Desktop draft goal',
     );
@@ -523,9 +563,7 @@ describe('CurieReviewScreen', () => {
 
   it('clears only the local edit draft after confirmation', async () => {
     renderScreen();
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignment();
     await userEvent.click(screen.getByRole('button', { name: 'Clear All' }));
     expect(
       screen.getByText(/previous submitted attempt will not be changed/),
@@ -533,18 +571,20 @@ describe('CurieReviewScreen', () => {
     await userEvent.click(
       screen.getAllByRole('button', { name: 'Clear All' }).at(-1)!,
     );
+    expect(screen.getAllByText('Not answered yet').length).toBeGreaterThan(0);
+
+    await openResubmissionSection('Goal');
     expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
       '',
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Contribution →' }));
+    await userEvent.click(screen.getByRole('button', { name: '← Back to responses' }));
+    await openResubmissionSection('Contribution');
     expect(
       (screen.getByLabelText('Contribution') as HTMLTextAreaElement).value,
     ).toBe('');
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit Assignment' }),
-    );
+    await openEditAssignmentSection('Goal');
     expect((screen.getByLabelText('Goal') as HTMLTextAreaElement).value).toBe(
       'Get better',
     );
