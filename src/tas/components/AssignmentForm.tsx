@@ -39,15 +39,20 @@ const syncTextareaHeight = (el: HTMLTextAreaElement | null) => {
     return;
   }
   // Reset to auto so scrollHeight reflects wrapped content, then expand.
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
+  el.style.setProperty('height', 'auto');
+  el.style.setProperty('height', `${el.scrollHeight}px`);
 };
 
-const AutoResizeTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = ({
+interface AutoResizeTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  value?: React.TextareaHTMLAttributes<HTMLTextAreaElement>['value'];
+  onInput?: React.TextareaHTMLAttributes<HTMLTextAreaElement>['onInput'];
+}
+
+const AutoResizeTextarea = ({
   value,
   onInput,
   ...rest
-}) => {
+}: AutoResizeTextareaProps) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {

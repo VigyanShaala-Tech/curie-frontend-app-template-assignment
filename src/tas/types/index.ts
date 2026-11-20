@@ -129,17 +129,74 @@ export interface RubricCriterion {
   feedbacks?: string[];
 }
 
+/** 1 = flat categories (`criteria`); 2 = weighted sections (`sections`). */
+export type RubricSchemaVersion = 1 | 2;
+
+export interface WeightedIndicator {
+  text: string;
+  marks: number;
+}
+
+/** Indicator marks add up to 10; the criterion is scored 0–10 when grading. */
+export interface WeightedCriterion {
+  id: string;
+  name: string;
+  indicators: WeightedIndicator[];
+}
+
+export interface WeightedComponent {
+  id: string;
+  name: string;
+  learning_objective: string;
+  learning_outcome: string;
+  /** Ids of the rubric template's fields this component evaluates. */
+  field_ids: string[];
+  /** Percent of the final score; non-gate weights add up to 100. */
+  weight: number;
+  /** Non-negotiable check: 0% weight, reject the submission when not met. */
+  is_gate: boolean;
+  criteria: WeightedCriterion[];
+  feedbacks?: string[];
+}
+
+export interface WeightedSection {
+  id: string;
+  title: string;
+  components: WeightedComponent[];
+}
+
 export interface Rubric {
   id: string;
   name: string;
+  schema_version: RubricSchemaVersion;
   criteria: RubricCriterion[];
+  sections: WeightedSection[];
+  template_id: string | null;
   is_active: boolean;
 }
 
 export interface BlockRubricsResponse {
   display_name: string;
   instructions: string;
+  schema_version?: RubricSchemaVersion;
   rubrics: RubricCriterion[];
+  sections?: WeightedSection[];
+}
+
+export interface WeightedCriterionScore {
+  criterion_id: string;
+  criterion: string;
+  score: number | null;
+  max_score: number;
+}
+
+/** One saved feedback row per weighted component. */
+export interface WeightedFeedbackRow {
+  component_id: string;
+  component: string;
+  /** Instructor section feedback for this component. Optional and may be blank. */
+  comment?: string;
+  criterion_scores: WeightedCriterionScore[];
 }
 
 export interface RubricFeedbackEntry {

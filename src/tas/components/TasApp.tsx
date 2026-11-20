@@ -34,7 +34,6 @@ import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import {
   getActiveFields,
-  hasMissingRequiredFields,
   isFieldEmpty,
 } from '../utils/activeFields';
 import { isResubmissionForm } from '../utils/resubmissionForm';
@@ -806,9 +805,7 @@ export const TasApp: React.FC = () => {
     transition: 'opacity 0.15s',
     whiteSpace: 'nowrap',
   };
-  const submitBlocked = isSaving
-    || !submission
-    || hasMissingRequiredFields(selectedTemplate, formData);
+  const submitBlocked = isSaving || !submission;
 
   return (
     <div className="d-flex flex-column h-100 tas-submission-root">
