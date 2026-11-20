@@ -649,9 +649,9 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
 
       {/* Body */}
       <div className="flex-grow-1 overflow-auto p-4">
-        <div className="row">
+        <div className="row align-items-stretch tas-instructor-detail-row">
           {/* Left: Submitted PDF */}
-          <div className="col-12 col-lg-6 mb-4">
+          <div className="col-12 col-lg-6 mb-4 tas-instructor-pdf-col">
             {submission.pdf && (
               <SubmissionPdfViewer
                 pdfUrl={submission.pdf}
@@ -663,9 +663,10 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
           </div>
 
           {/* Right: Feedback form (submitted) or past feedback (rejected) */}
-          <div className="col-12 col-lg-6 mb-4">
-            <Card className="shadow-sm">
+          <div className="col-12 col-lg-6 mb-4 tas-instructor-feedback-col">
+            <Card className="shadow-sm tas-instructor-feedback-panel">
               <Card.Header title={feedbackCardTitle} />
+              <div className="tas-instructor-feedback-panel__scroll">
               <Card.Section>
                 <InstructorCuriePanel
                   presentation={displayedCuriePresentation}
@@ -1062,6 +1063,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   )
                 )}
               </Card.Section>
+              </div>
             </Card>
           </div>
         </div>

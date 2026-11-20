@@ -158,7 +158,7 @@ export const WeightedRubricGrading: React.FC<Props> = ({
                       const value = scores[component.id]?.[criterion.id] ?? '';
                       return (
                         <Form.Group key={key} className="mb-0">
-                          <Form.Label className="small font-weight-bold">{criterion.name}</Form.Label>
+                          <Form.Label className="tas-wg-criterion-label">{criterion.name}</Form.Label>
                           {readOnly ? (
                             <div className="small">{value === '' ? '—' : `${value} / ${CRITERION_MAX}`}</div>
                           ) : (

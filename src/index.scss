@@ -1935,3 +1935,70 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: .75rem;
 }
+
+.tas-wg-criterion-label {
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: .25rem;
+}
+
+// Instructor review: equal-height PDF + feedback cards; feedback scrolls inside.
+// Page/PDF scrolling stays native; no wheel listeners or body lock.
+.tas-instructor-feedback-col {
+  min-width: 0;
+}
+
+.tas-instructor-feedback-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tas-instructor-feedback-panel__scroll {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+@media (width >= 992px) {
+  .tas-instructor-detail-row {
+    align-items: stretch;
+  }
+
+  .tas-instructor-pdf-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .tas-instructor-pdf-col .tas-submission-pdf-viewer {
+    width: 100%;
+    margin-bottom: 0 !important;
+  }
+
+  .tas-instructor-feedback-col {
+    position: relative;
+    min-width: 0;
+  }
+
+  .tas-instructor-feedback-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .tas-instructor-feedback-panel > :first-child {
+    flex-shrink: 0;
+  }
+
+  .tas-instructor-feedback-panel__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
