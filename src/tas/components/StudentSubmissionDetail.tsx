@@ -66,7 +66,7 @@ export const StudentSubmissionDetail: React.FC<Props> = ({ version, onBack }) =>
       </button>
       <button
         type="button"
-        onClick={() => { void downloadPdf(pdfUrl, downloadFilename); }}
+        onClick={() => { downloadPdf(pdfUrl, downloadFilename); }}
         style={{ ...headerPdfBtnStyle, background: '#2563eb', color: '#fff' }}
       >
         ↓ Download PDF

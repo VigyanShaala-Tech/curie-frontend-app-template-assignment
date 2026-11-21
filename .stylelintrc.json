@@ -28,7 +28,7 @@
     "scss/comment-no-empty": null,
     "import-notation": "string",
     "property-no-unknown": [true, {
-      "ignoreProperties": ["xs", "sm", "md", "lg", "xl", "xxl"]
+      "ignoreProperties": ["xs", "sm", "md", "lg", "xl", "xxl", "field-sizing"]
     }],
     "alpha-value-notation": "number"
   }

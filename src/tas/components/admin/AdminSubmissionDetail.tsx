@@ -38,6 +38,7 @@ import { InstructorCommentEditor } from './InstructorCommentEditor';
 import { InstructorCommentHtml } from './InstructorCommentHtml';
 import { InstructorCuriePanel } from './InstructorCuriePanel';
 import { StructuredOverrideEditor } from './StructuredOverrideEditor';
+import { CurieApprovalActions } from './CurieApprovalActions';
 import { PredefinedFeedbackMultiSelect } from './PredefinedFeedbackMultiSelect';
 import {
   INSTRUCTOR_OVERRIDE_ACTION,
@@ -82,7 +83,8 @@ const FEEDBACK_BORDER: Record<string, string> = {
 
 function curieStatusBadgeVariant(label: string): string {
   if (label === 'Failed') { return 'danger'; }
-  if (label === 'Pending') { return 'warning'; }
+  if (label === 'Pending' || label === 'Awaiting Approval') { return 'warning'; }
+  if (label === 'Approved') { return 'success'; }
   return 'info';
 }
 
@@ -424,8 +426,21 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     && curiePresentation.showReadyOutput
     && submission.curie_review,
   );
+  const showCurieApprovalWorkflow = Boolean(
+    submission.curie_review
+    && (
+      submission.curie_review.status === 'ready_for_approval'
+      || submission.curie_review.awaiting_approval
+    ),
+  );
   const showGradingForm = !showStructuredOverride && (
-    (isSubmitted && !curiePresentation.formLocked && !curiePresentation.canOverride)
+    (
+      isSubmitted
+      && !curiePresentation.formLocked
+      && !curiePresentation.canOverride
+      && !curiePresentation.awaitingApproval
+      && !curiePresentation.approved
+    )
     || overrideEditing
   );
   const showPreviousProjection = Boolean(
@@ -435,7 +450,12 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     && !activeStructuredFeedback,
   );
   let feedbackCardTitle = 'Previous Feedback';
-  if (curiePresentation.canPublish || curiePresentation.showReadyOutput) {
+  if (
+    curiePresentation.awaitingApproval
+    || curiePresentation.approved
+    || curiePresentation.canPublish
+    || curiePresentation.showReadyOutput
+  ) {
     feedbackCardTitle = 'CURIE review';
   } else if (activeStructuredFeedback) {
     feedbackCardTitle = 'Instructor review';
@@ -500,12 +520,25 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   templateFields={submission.template_fields ?? {}}
                   overrideEditing={overrideEditing}
                 />
+                {showCurieApprovalWorkflow && submission.curie_review && (
+                  <CurieApprovalActions
+                    key={`${submissionId}:${submission.curie_review.trigger_id ?? submission.version}`}
+                    submissionId={submissionId}
+                    review={submission.curie_review}
+                    versionNumber={submission.curie_review.submission_version_number ?? submission.version}
+                    templateFields={submission.template_fields ?? {}}
+                    onApproved={() => {
+                      queryClient.invalidateQueries({ queryKey: ['admin-submission-detail', submissionId] });
+                      queryClient.invalidateQueries({ queryKey: ['admin-submissions', usageKey] });
+                    }}
+                  />
+                )}
                 {curiePresentation.formLocked && (
                   <p className="text-muted small mb-0" data-testid="instructor-form-locked">
                     Approve and Reject stay disabled until CURIE finishes or times out.
                   </p>
                 )}
-                {curiePresentation.canPublish && !overrideEditing && (
+                {curiePresentation.canPublish && !overrideEditing && !showCurieApprovalWorkflow && (
                   <Button
                     variant="primary"
                     size="sm"

@@ -101,12 +101,17 @@ export function wholeStarCount(rating: number | null | undefined): number {
   return Math.max(0, Math.min(5, Math.round(Number(rating))));
 }
 
+export const AWAITING_APPROVAL_LABEL = 'Awaiting Instructor Review';
+
 export function learnerVerdictLabel(
   status: CurieReviewStatus | null | undefined,
   verdict: CurieVerdict | null | undefined,
 ): string {
   if (status === 'pending_evaluation') {
     return 'Pending Evaluation';
+  }
+  if (status === 'ready_for_approval') {
+    return AWAITING_APPROVAL_LABEL;
   }
   if (status === 'failed') {
     return 'Review Unavailable';
@@ -121,6 +126,7 @@ export function learnerVerdictLabel(
 }
 
 export function historyRowStatus(version: SubmissionVersion): string {
+  if (version.curie_review_status === 'ready_for_approval') { return AWAITING_APPROVAL_LABEL; }
   if (version.feedback_source === 'human') {
     if (version.feedback_status === 'approved') {
       return 'Accepted';
@@ -168,3 +174,8 @@ export const AWAITING_INSTRUCTOR_APPROVAL_COPY = 'Curie has completed its review
 export const LIVE_FAILED_COPY = "Curie wasn't able to complete a review for this submission. Your answers are unchanged below — resubmit whenever you're ready to try again.";
 
 export const HISTORICAL_FAILED_COPY = 'CURIE did not complete a review for this attempt.';
+export const AWAITING_APPROVAL_COPY = 'CURIE has completed its review. Your instructor is checking the feedback before it is shared with you. This page will update automatically once your feedback is approved.';
+
+export const INSTRUCTOR_MODIFIED_NOTE = 'Reviewed and updated by your instructor.';
+
+export const INSTRUCTOR_APPROVED_NOTE = 'Reviewed and approved by your instructor.';

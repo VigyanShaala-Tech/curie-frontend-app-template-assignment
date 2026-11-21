@@ -9,18 +9,24 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
   Button, Form, Spinner,
 } from '@openedx/paragon';
-import { ArrowBack, Add, ZoomIn, ZoomOut, Refresh } from '@openedx/paragon/icons';
+import {
+  ArrowBack, Add, ZoomIn, ZoomOut, Refresh,
+} from '@openedx/paragon/icons';
 import { templateTypesApi, adminTemplatesApi } from '../../services/api';
 import { validateStructuralMetadata } from '../../utils/assignmentStructure';
 import { FieldStructureControls } from './FieldStructureControls';
-import type { Template, FormField, FieldPosition, TemplateCreateBody } from '../../types';
+import type {
+  Template, FormField, FieldPosition, TemplateCreateBody,
+} from '../../types';
 
 function generateFieldId() {
   return `f-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 const FIELD_TYPES: FormField['type'][] = ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio'];
-const DEFAULT_POSITION: FieldPosition = { x: 10, y: 10, width: 40, height: 5 };
+const DEFAULT_POSITION: FieldPosition = {
+  x: 10, y: 10, width: 40, height: 5,
+};
 
 // ── FieldRow ──────────────────────────────────────────────────────────────────
 
@@ -46,88 +52,163 @@ const FieldRow: React.FC<FieldRowProps> = ({
   onSelect, onChange, onRemove,
   onDragStart, onDragOver, onDrop, onDragEnd,
   sectionNames,
-}) => (
-  <div
-    draggable
-    onDragStart={onDragStart}
-    onDragOver={onDragOver}
-    onDrop={onDrop}
-    onDragEnd={onDragEnd}
-    onClick={onSelect}
-    style={{
-      borderRadius: 8,
-      border: `1.5px solid ${isDragOver ? '#6366f1' : isSelected ? '#2563eb' : '#e5e7eb'}`,
-      background: isDragOver ? '#eef2ff' : isSelected ? '#f8faff' : '#fff',
-      marginBottom: 6,
-      transition: 'border-color 0.1s, background 0.1s',
-      overflow: 'hidden',
-    }}
-  >
-    {/* Collapsed header — always visible */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px' }}>
-      <span
-        title="Drag to reorder"
-        style={{ cursor: 'grab', fontSize: 13, color: '#c4c9d4', flexShrink: 0, lineHeight: 1, userSelect: 'none', paddingRight: 2 }}
-        onMouseDown={(e) => e.stopPropagation()}
+}) => {
+  let borderColor = '#e5e7eb';
+  let rowBackground = '#fff';
+  if (isSelected) {
+    borderColor = '#2563eb';
+    rowBackground = '#f8faff';
+  }
+  if (isDragOver) {
+    borderColor = '#6366f1';
+    rowBackground = '#eef2ff';
+  }
+  return (
+    <div
+      draggable
+      role="button"
+      tabIndex={0}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      style={{
+        borderRadius: 8,
+        border: `1.5px solid ${borderColor}`,
+        background: rowBackground,
+        marginBottom: 6,
+        transition: 'border-color 0.1s, background 0.1s',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Collapsed header — always visible */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px',
+      }}
       >
-        ⠿
-      </span>
+        <button
+          type="button"
+          title="Drag to reorder"
+          aria-label="Drag to reorder"
+          style={{
+            cursor: 'grab',
+            fontSize: 13,
+            color: '#c4c9d4',
+            flexShrink: 0,
+            lineHeight: 1,
+            userSelect: 'none',
+            paddingRight: 2,
+            background: 'none',
+            border: 'none',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          ⠿
+        </button>
 
-      <span style={{
-        flexShrink: 0, minWidth: 18, height: 18, borderRadius: 4,
-        background: isSelected ? '#2563eb' : '#e5e7eb',
-        color: isSelected ? '#fff' : '#6b7280',
-        fontSize: 10, fontWeight: 700,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {index + 1}
-      </span>
-
-      <span style={{
-        flex: 1, fontSize: 13, fontWeight: isSelected ? 600 : 400,
-        color: field.label ? '#111827' : '#9ca3af',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {field.label || 'Untitled field'}
-      </span>
-
-      <span style={{
-        flexShrink: 0, fontSize: 10, color: '#9ca3af',
-        background: '#f3f4f6', borderRadius: 4, padding: '2px 5px',
-      }}>
-        {field.type}
-      </span>
-
-      {field.required && (
-        <span style={{ flexShrink: 0, fontSize: 11, color: '#ef4444', fontWeight: 700 }}>*</span>
-      )}
-
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        style={{
-          flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
-          color: '#d1d5db', fontSize: 14, lineHeight: 1, padding: '0 2px',
+        <span style={{
+          flexShrink: 0,
+          minWidth: 18,
+          height: 18,
           borderRadius: 4,
+          background: isSelected ? '#2563eb' : '#e5e7eb',
+          color: isSelected ? '#fff' : '#6b7280',
+          fontSize: 10,
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-        title="Remove field"
-      >
-        ✕
-      </button>
-    </div>
+        >
+          {index + 1}
+        </span>
 
-    {/* Expanded detail — only when selected */}
-    {isSelected && (
+        <span style={{
+          flex: 1,
+          fontSize: 13,
+          fontWeight: isSelected ? 600 : 400,
+          color: field.label ? '#111827' : '#9ca3af',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+        >
+          {field.label || 'Untitled field'}
+        </span>
+
+        <span style={{
+          flexShrink: 0,
+          fontSize: 10,
+          color: '#9ca3af',
+          background: '#f3f4f6',
+          borderRadius: 4,
+          padding: '2px 5px',
+        }}
+        >
+          {field.type}
+        </span>
+
+        {field.required && (
+        <span style={{
+          flexShrink: 0, fontSize: 11, color: '#ef4444', fontWeight: 700,
+        }}
+        >*
+        </span>
+        )}
+
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          style={{
+            flexShrink: 0,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#d1d5db',
+            fontSize: 14,
+            lineHeight: 1,
+            padding: '0 2px',
+            borderRadius: 4,
+          }}
+          title="Remove field"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Expanded detail — only when selected */}
+      {isSelected && (
       <div
+        role="presentation"
         style={{ borderTop: '1px solid #e5e7eb', padding: '10px 10px 12px', background: '#f9fafb' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Label input */}
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+          <label
+            htmlFor={`field-${field.id}-label`}
+            style={{
+              display: 'block',
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#6b7280',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              marginBottom: 3,
+            }}
+          >
             Label
           </label>
           <Form.Control
+            id={`field-${field.id}-label`}
             value={field.label}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...field, label: e.target.value })}
             placeholder="Field label"
@@ -136,12 +217,27 @@ const FieldRow: React.FC<FieldRowProps> = ({
         </div>
 
         {/* Type + Required row */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+        <div style={{
+          display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-end',
+        }}
+        >
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+            <label
+              htmlFor={`field-${field.id}-type`}
+              style={{
+                display: 'block',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 3,
+              }}
+            >
               Type
             </label>
             <Form.Control
+              id={`field-${field.id}-type`}
               as="select"
               value={field.type}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({ ...field, type: e.target.value as FormField['type'] })}
@@ -168,23 +264,50 @@ const FieldRow: React.FC<FieldRowProps> = ({
         {/* Font size + Max chars row */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+            <label
+              htmlFor={`field-${field.id}-font-size`}
+              style={{
+                display: 'block',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 3,
+              }}
+            >
               Font size (px)
             </label>
             <Form.Control
+              id={`field-${field.id}-font-size`}
               as="select"
               value={field.fontSize ?? 14}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({ ...field, fontSize: parseInt(e.target.value, 10) })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({
+                ...field,
+                fontSize: parseInt(e.target.value, 10),
+              })}
               size="sm"
             >
               {FONT_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}
             </Form.Control>
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+            <label
+              htmlFor={`field-${field.id}-max-chars`}
+              style={{
+                display: 'block',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 3,
+              }}
+            >
               Max chars (optional)
             </label>
             <Form.Control
+              id={`field-${field.id}-max-chars`}
               type="number"
               size="sm"
               min={1}
@@ -208,16 +331,29 @@ const FieldRow: React.FC<FieldRowProps> = ({
         {/* Options — select / radio only */}
         {(field.type === 'select' || field.type === 'radio') && (
           <div>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+            <label
+              htmlFor={`field-${field.id}-options`}
+              style={{
+                display: 'block',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 3,
+              }}
+            >
               Options (one per line)
             </label>
             <Form.Control
+              id={`field-${field.id}-options`}
               as="textarea"
               rows={3}
               value={(field.options ?? []).join('\n')}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                onChange({ ...field, options: e.target.value.split('\n').filter((o) => o.trim()) })
-              }
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange({
+                ...field,
+                options: e.target.value.split('\n').filter((o) => o.trim()),
+              })}
               placeholder={'Option A\nOption B'}
               size="sm"
               style={{ resize: 'none' }}
@@ -225,9 +361,10 @@ const FieldRow: React.FC<FieldRowProps> = ({
           </div>
         )}
       </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+};
 
 // ── DraggableOverlay ──────────────────────────────────────────────────────────
 
@@ -259,9 +396,9 @@ const DraggableOverlay: React.FC<DraggableOverlayProps> = ({
   };
 
   const px = {
-    left:   `${position.x}%`,
-    top:    `${position.y}%`,
-    width:  `${position.width}%`,
+    left: `${position.x}%`,
+    top: `${position.y}%`,
+    width: `${position.width}%`,
     height: `${position.height}%`,
   };
 
@@ -270,14 +407,18 @@ const DraggableOverlay: React.FC<DraggableOverlayProps> = ({
     e.preventDefault();
     onSelect();
     const { rw, rh } = getRenderedSize();
-    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: position.x, oy: position.y, rw, rh };
+    dragRef.current = {
+      sx: e.clientX, sy: e.clientY, ox: position.x, oy: position.y, rw, rh,
+    };
 
     const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      const { sx, sy, ox, oy, rw: w, rh: h } = dragRef.current;
+      if (!dragRef.current) { return; }
+      const {
+        sx, sy, ox, oy, rw: w, rh: h,
+      } = dragRef.current;
       onPositionChange({
         ...position,
-        x: Math.max(0, Math.min(100 - position.width,  ox + ((ev.clientX - sx) / w) * 100)),
+        x: Math.max(0, Math.min(100 - position.width, ox + ((ev.clientX - sx) / w) * 100)),
         y: Math.max(0, Math.min(100 - position.height, oy + ((ev.clientY - sy) / h) * 100)),
       });
     };
@@ -294,14 +435,18 @@ const DraggableOverlay: React.FC<DraggableOverlayProps> = ({
     e.stopPropagation();
     e.preventDefault();
     const { rw, rh } = getRenderedSize();
-    resizeRef.current = { sx: e.clientX, sy: e.clientY, ow: position.width, oh: position.height, rw, rh };
+    resizeRef.current = {
+      sx: e.clientX, sy: e.clientY, ow: position.width, oh: position.height, rw, rh,
+    };
 
     const onMove = (ev: MouseEvent) => {
-      if (!resizeRef.current) return;
-      const { sx, sy, ow, oh, rw: w, rh: h } = resizeRef.current;
+      if (!resizeRef.current) { return; }
+      const {
+        sx, sy, ow, oh, rw: w, rh: h,
+      } = resizeRef.current;
       onPositionChange({
         ...position,
-        width:  Math.max(0.5, Math.min(100 - position.x, ow + ((ev.clientX - sx) / w) * 100)),
+        width: Math.max(0.5, Math.min(100 - position.x, ow + ((ev.clientX - sx) / w) * 100)),
         height: Math.max(0.5, Math.min(100 - position.y, oh + ((ev.clientY - sy) / h) * 100)),
       });
     };
@@ -316,15 +461,29 @@ const DraggableOverlay: React.FC<DraggableOverlayProps> = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={field.label || 'Field'}
       onMouseDown={onMouseDown}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
       style={{
         position: 'absolute',
-        left: px.left, top: px.top, width: px.width, height: px.height,
+        left: px.left,
+        top: px.top,
+        width: px.width,
+        height: px.height,
         border: `2px ${isSelected ? 'solid' : 'dashed'} ${borderColor}`,
         background: isSelected ? `${borderColor}18` : `${borderColor}08`,
-        cursor: 'move', userSelect: 'none', borderRadius: 4,
+        cursor: 'move',
+        userSelect: 'none',
+        borderRadius: 4,
         boxSizing: 'border-box',
         boxShadow: isSelected ? `0 0 0 2px ${borderColor}40` : 'none',
       }}
@@ -332,32 +491,53 @@ const DraggableOverlay: React.FC<DraggableOverlayProps> = ({
       {/* Label badge — visible on hover or when selected */}
       {(isHovered || isSelected) && (
         <div style={{
-          position: 'absolute', left: 0, top: -18,
-          background: borderColor, color: '#fff',
-          fontSize: 9, fontWeight: 700,
-          padding: '2px 6px', borderRadius: 3,
-          whiteSpace: 'nowrap', pointerEvents: 'none',
+          position: 'absolute',
+          left: 0,
+          top: -18,
+          background: borderColor,
+          color: '#fff',
+          fontSize: 9,
+          fontWeight: 700,
+          padding: '2px 6px',
+          borderRadius: 3,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
           zIndex: 10,
-        }}>
+        }}
+        >
           {fieldIndex + 1}. {field.label || '(unnamed)'}{field.required ? ' *' : ''}
         </div>
       )}
 
       {/* Type hint */}
       <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 10, color: borderColor, fontWeight: 500, pointerEvents: 'none',
-      }}>
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 10,
+        color: borderColor,
+        fontWeight: 500,
+        pointerEvents: 'none',
+      }}
+      >
         {field.type}
       </div>
 
       {/* Resize handle — always visible when selected */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Resize field"
         onMouseDown={onResizeDown}
+        onKeyDown={(event) => event.stopPropagation()}
         style={{
-          position: 'absolute', bottom: -1, right: -1,
-          width: 16, height: 16,
+          position: 'absolute',
+          bottom: -1,
+          right: -1,
+          width: 16,
+          height: 16,
           background: borderColor,
           cursor: 'se-resize',
           borderRadius: '3px 0 0 0',
@@ -406,14 +586,17 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   const templateTypes = typesResult?.results ?? [];
 
   const saveMut = useMutation({
-    mutationFn: (body: TemplateCreateBody) =>
-      isEdit ? adminTemplatesApi.update(template!.id, body) : adminTemplatesApi.create(body),
+    mutationFn: (body: TemplateCreateBody) => (
+      isEdit ? adminTemplatesApi.update(template!.id, body) : adminTemplatesApi.create(body)
+    ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-templates'] }); onBack(); },
   });
 
   const addField = useCallback(() => {
     const id = generateFieldId();
-    setFields((prev) => [...prev, { id, label: '', type: 'text', required: false }]);
+    setFields((prev) => [...prev, {
+      id, label: '', type: 'text', required: false,
+    }]);
     setPositions((prev) => ({ ...prev, [id]: { ...DEFAULT_POSITION, y: 10 + Object.keys(prev).length * 8 } }));
     setSelectedFieldId(id);
   }, []);
@@ -424,7 +607,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
       const section = updated.section?.trim();
       const styleChanged = previous?.displayStyle !== updated.displayStyle;
       return prev.map((field) => {
-        if (field.id === updated.id) return updated;
+        if (field.id === updated.id) { return updated; }
         if (
           styleChanged
           && section
@@ -440,7 +623,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   const removeField = useCallback((id: string) => {
     setFields((prev) => prev.filter((f) => f.id !== id));
     setPositions((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    if (selectedFieldId === id) setSelectedFieldId(null);
+    if (selectedFieldId === id) { setSelectedFieldId(null); }
   }, [selectedFieldId]);
 
   const updatePosition = useCallback((id: string, pos: FieldPosition) => {
@@ -448,27 +631,34 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   }, []);
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 2) return;
+    if (e.button !== 2) { return; }
     e.preventDefault();
     e.stopPropagation();
     const rect = canvasRef.current!.getBoundingClientRect();
     drawRef.current = { sx: e.clientX, sy: e.clientY, rect };
-    setDrawPreview({ x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100, width: 0, height: 0 });
+    setDrawPreview({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+      width: 0,
+      height: 0,
+    });
 
     const onMove = (ev: MouseEvent) => {
-      if (!drawRef.current) return;
+      if (!drawRef.current) { return; }
       const { sx, sy, rect: r } = drawRef.current;
       const x1 = Math.max(0, Math.min((sx - r.left) / r.width, 1)) * 100;
       const y1 = Math.max(0, Math.min((sy - r.top) / r.height, 1)) * 100;
       const x2 = Math.max(0, Math.min((ev.clientX - r.left) / r.width, 1)) * 100;
       const y2 = Math.max(0, Math.min((ev.clientY - r.top) / r.height, 1)) * 100;
-      setDrawPreview({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) });
+      setDrawPreview({
+        x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1),
+      });
     };
 
     const onUp = (ev: MouseEvent) => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
-      if (!drawRef.current) return;
+      if (!drawRef.current) { return; }
       const { sx, sy, rect: r } = drawRef.current;
       drawRef.current = null;
       setDrawPreview(null);
@@ -478,10 +668,17 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
       const y2 = Math.max(0, Math.min((ev.clientY - r.top) / r.height, 1)) * 100;
       const w = Math.abs(x2 - x1);
       const h = Math.abs(y2 - y1);
-      if (w < 0.5 || h < 0.5) return; // too small — ignore accidental right-clicks
+      if (w < 0.5 || h < 0.5) { return; } // too small — ignore accidental right-clicks
       const id = generateFieldId();
-      setFields((prev) => [...prev, { id, label: '', type: 'text', required: false }]);
-      setPositions((prev) => ({ ...prev, [id]: { x: Math.min(x1, x2), y: Math.min(y1, y2), width: w, height: h } }));
+      setFields((prev) => [...prev, {
+        id, label: '', type: 'text', required: false,
+      }]);
+      setPositions((prev) => ({
+        ...prev,
+        [id]: {
+          x: Math.min(x1, x2), y: Math.min(y1, y2), width: w, height: h,
+        },
+      }));
       setSelectedFieldId(id);
     };
 
@@ -490,7 +687,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
   }, []);
 
   const reorderFields = useCallback((fromIdx: number, toIdx: number) => {
-    if (fromIdx === toIdx) return;
+    if (fromIdx === toIdx) { return; }
     setFields((prev) => {
       const next = [...prev];
       const [moved] = next.splice(fromIdx, 1);
@@ -522,7 +719,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
 
   const selectedPos = selectedFieldId ? positions[selectedFieldId] : null;
   const sectionNames = Array.from(new Set(fields.map((field) => field.section?.trim()).filter(Boolean))) as string[];
-  const setSelectedPos = (pos: FieldPosition) => { if (selectedFieldId) updatePosition(selectedFieldId, pos); };
+  const setSelectedPos = (pos: FieldPosition) => { if (selectedFieldId) { updatePosition(selectedFieldId, pos); } };
 
   return (
     <div className="d-flex flex-column h-100">
@@ -551,7 +748,9 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
           onClick={handleSave}
           disabled={saveMut.isPending}
         >
-          {saveMut.isPending ? <Spinner animation="border" size="sm" screenReaderText="Saving" /> : isEdit ? 'Save Changes' : 'Create'}
+          {saveMut.isPending && <Spinner animation="border" size="sm" screenReaderText="Saving" />}
+          {!saveMut.isPending && isEdit && 'Save Changes'}
+          {!saveMut.isPending && !isEdit && 'Create'}
         </Button>
       </div>
 
@@ -594,7 +793,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const file = e.target.files?.[0] ?? null;
                   setImageFile(file);
-                  if (file) setImageUrl(URL.createObjectURL(file));
+                  if (file) { setImageUrl(URL.createObjectURL(file)); }
                 }}
               />
               {imageUrl && (
@@ -611,7 +810,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const file = e.target.files?.[0] ?? null;
                   setThumbnailFile(file);
-                  if (file) setThumbnailUrl(URL.createObjectURL(file));
+                  if (file) { setThumbnailUrl(URL.createObjectURL(file)); }
                 }}
               />
             </Form.Group>
@@ -652,7 +851,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                 onDragStart={() => setDragFromIndex(i)}
                 onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
                 onDrop={() => {
-                  if (dragFromIndex !== null) reorderFields(dragFromIndex, i);
+                  if (dragFromIndex !== null) { reorderFields(dragFromIndex, i); }
                   setDragFromIndex(null);
                   setDragOverIndex(null);
                 }}
@@ -671,11 +870,16 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                       <Form.Group controlId={`pos-${key}`} className="mb-0">
                         <Form.Label className="text-capitalize small">{key}</Form.Label>
                         <Form.Control
-                          type="number" size="sm" min={0} max={100} step={0.5}
+                          type="number"
+                          size="sm"
+                          min={0}
+                          max={100}
+                          step={0.5}
                           value={Math.round(selectedPos[key] * 10) / 10}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setSelectedPos({ ...selectedPos, [key]: parseFloat(e.target.value) || 0 })
-                          }
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedPos({
+                            ...selectedPos,
+                            [key]: parseFloat(e.target.value) || 0,
+                          })}
                         />
                       </Form.Group>
                     </div>
@@ -688,14 +892,21 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
 
         {/* Right panel: canvas */}
         <div className="flex-grow-1 position-relative overflow-hidden" style={{ background: '#e5e7eb' }}>
-          <TransformWrapper minScale={0.2} maxScale={4} limitToBounds={false} centerOnInit wheel={{ disabled: true }} pinch={{ disabled: true }}>
+          <TransformWrapper
+            minScale={0.2}
+            maxScale={4}
+            limitToBounds={false}
+            centerOnInit
+            wheel={{ disabled: true }}
+            pinch={{ disabled: true }}
+          >
             {({ zoomIn, zoomOut, resetTransform }) => (
               <>
                 {/* Zoom controls */}
                 <div className="position-absolute d-flex flex-column gap-2" style={{ top: 12, right: 12, zIndex: 10 }}>
                   {([
-                    { icon: ZoomIn,  action: () => zoomIn(),        label: '+' },
-                    { icon: ZoomOut, action: () => zoomOut(),       label: '−' },
+                    { icon: ZoomIn, action: () => zoomIn(), label: '+' },
+                    { icon: ZoomOut, action: () => zoomOut(), label: '−' },
                     { icon: Refresh, action: () => resetTransform(), label: '↺' },
                   ] as const).map(({ icon: Ic, action, label }) => (
                     <Button key={label} variant="light" size="sm" iconBefore={Ic} onClick={action} className="p-1 shadow-sm">
@@ -707,11 +918,19 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                 <TransformComponent wrapperClass="w-100 h-100" contentClass="w-100 h-100 d-flex align-items-center justify-content-center">
                   <div
                     ref={canvasRef}
+                    role="toolbar"
+                    tabIndex={0}
+                    aria-label="Template canvas"
                     className="position-relative shadow"
                     style={{ width: imageNaturalW, height: imageNaturalH }}
                     onClick={() => setSelectedFieldId(null)}
                     onMouseDown={handleCanvasMouseDown}
                     onContextMenu={(e) => e.preventDefault()}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        setSelectedFieldId(null);
+                      }
+                    }}
                   >
                     {imageUrl ? (
                       <img src={imageUrl} alt="template" className="position-absolute w-100 h-100" style={{ objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} draggable={false} />
@@ -723,7 +942,7 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
 
                     {fields.map((f, i) => {
                       const pos = positions[f.id];
-                      if (!pos) return null;
+                      if (!pos) { return null; }
                       return (
                         <DraggableOverlay
                           key={f.id}
@@ -742,8 +961,10 @@ export const AdminTemplateEditor: React.FC<Props> = ({ template, onBack }) => {
                       <div
                         style={{
                           position: 'absolute',
-                          left: `${drawPreview.x}%`, top: `${drawPreview.y}%`,
-                          width: `${drawPreview.width}%`, height: `${drawPreview.height}%`,
+                          left: `${drawPreview.x}%`,
+                          top: `${drawPreview.y}%`,
+                          width: `${drawPreview.width}%`,
+                          height: `${drawPreview.height}%`,
                           border: '2px dashed #2563eb',
                           background: 'rgba(37,99,235,0.08)',
                           pointerEvents: 'none',

@@ -171,4 +171,54 @@ describe('deriveLifecycle', () => {
       isCanvasReadOnly: false,
     });
   });
+
+  it('holds the learner in awaiting_approval and keeps polling until release', () => {
+    expect(deriveLifecycle({
+      submissionStatus: 'submitted',
+      curieReviewStatus: 'ready_for_approval',
+      // A previous attempt's edited approval must not flip this into human ownership.
+      feedbackSource: 'human',
+      hasFeedback: false,
+    })).toMatchObject({
+      displayState: 'awaiting_approval',
+      hasCurieReview: true,
+      canEdit: false,
+      canSubmit: false,
+      canReattempt: false,
+      canWithdraw: false,
+      isCanvasReadOnly: true,
+      shouldPoll: true,
+    });
+  });
+
+  it.each([
+    ['curie', 'approved', 'curie_accepted', false],
+    ['curie', 'rejected', 'curie_rejected', true],
+    ['human', 'approved', 'curie_accepted', false],
+    ['human', 'rejected', 'curie_rejected', true],
+  ] as const)(
+    'shows an approved review (source %s, submission %s) as %s',
+    (feedbackSource, submissionStatus, displayState, canReattempt) => {
+      expect(deriveLifecycle({
+        submissionStatus,
+        curieReviewStatus: 'approved',
+        feedbackSource,
+        hasFeedback: true,
+      })).toMatchObject({
+        displayState,
+        canReattempt,
+        canWithdraw: false,
+        shouldPoll: false,
+      });
+    },
+  );
+
+  it('blocks reattempt on an approved rejection at the attempt cap', () => {
+    expect(deriveLifecycle({
+      submissionStatus: 'rejected',
+      curieReviewStatus: 'approved',
+      feedbackSource: 'curie',
+      atMaxAttempts: true,
+    })).toMatchObject({ displayState: 'curie_rejected', canReattempt: false });
+  });
 });

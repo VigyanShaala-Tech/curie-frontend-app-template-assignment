@@ -63,7 +63,7 @@ const MobileFloatingPopup: React.FC<MobileFloatingPopupProps> = ({
 
   useLayoutEffect(() => {
     const el = modalRef.current;
-    if (!el) return undefined;
+    if (!el) { return undefined; }
 
     const updateSize = () => {
       setModalSize({ width: el.offsetWidth, height: el.offsetHeight });
@@ -77,7 +77,7 @@ const MobileFloatingPopup: React.FC<MobileFloatingPopupProps> = ({
 
   useLayoutEffect(() => {
     const el = modalRef.current;
-    if (!el) return;
+    if (!el) { return; }
     const { offsetWidth: w, offsetHeight: h } = el;
     setAnchor(getDefaultAnchor(viewportRect, w, h));
     x.set(0);
@@ -106,7 +106,9 @@ const MobileFloatingPopup: React.FC<MobileFloatingPopupProps> = ({
   return (
     <>
       <motion.div
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40 }}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40,
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -192,6 +194,7 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
   const [localValue, setLocalValue] = React.useState('');
   const composingRef = useRef(false);
   const acceptedValueRef = useRef('');
+  const focusRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (field) {
@@ -201,17 +204,23 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
     }
   }, [field, formData]);
 
+  useEffect(() => {
+    if (isFieldEditorOpen && field) {
+      focusRef.current?.focus();
+    }
+  }, [isFieldEditorOpen, field?.id]);
+
   const fieldLayout = useMemo(() => {
-    if (!field || !selectedTemplate) return null;
+    if (!field || !selectedTemplate) { return null; }
     const position = selectedTemplate.field_positions[field.id];
-    if (!position) return null;
+    if (!position) { return null; }
     const imageW = selectedTemplate.image_width || 794;
     const imageH = selectedTemplate.image_height || 1123;
     return resolveFieldLayout(field, position, imageW, imageH);
   }, [field, selectedTemplate]);
 
   const applyCapacityGatedValue = (candidate: string) => {
-    if (!field) return;
+    if (!field) { return; }
     if (!fieldLayout) {
       setLocalValue(candidate);
       acceptedValueRef.current = candidate;
@@ -225,7 +234,7 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
     setFieldCapacityFull(field.id, result.capacityFull);
   };
 
-  if (!field || !isFieldEditorOpen) return null;
+  if (!field || !isFieldEditorOpen) { return null; }
 
   const saveAndNavigate = (targetField: FormField) => {
     setFormValue(field.id, localValue);
@@ -316,7 +325,7 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
             onChange={(e) => setLocalValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
-            autoFocus
+            ref={(node) => { focusRef.current = node; }}
           />
         );
       case 'number':
@@ -329,7 +338,7 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
             onChange={(e) => setLocalValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
-            autoFocus
+            ref={(node) => { focusRef.current = node; }}
           />
         );
       default:
@@ -347,7 +356,7 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               onFocus={handleInputFocus}
-              autoFocus
+              ref={(node) => { focusRef.current = node; }}
             />
             {isCapacityFull && (
               <div
@@ -473,7 +482,10 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
           ← Prev
         </button>
         {fields.length > 1 && (
-          <span style={{ alignSelf: 'center', fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+          <span style={{
+            alignSelf: 'center', fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap',
+          }}
+          >
             {currentIndex + 1} / {fields.length}
           </span>
         )}
@@ -521,7 +533,9 @@ export const FieldEditorPopup: React.FC<Props> = ({ field, fields }) => {
       {isFieldEditorOpen && (
         <>
           <motion.div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40,
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

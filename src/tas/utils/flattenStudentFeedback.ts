@@ -91,6 +91,6 @@ export function flattenStudentFeedbackLines(comment: string): string[] {
 
   return plain
     .split(/\r?\n/)
-    .map((line) => line.replace(/^[\u2022*\-]\s*/, '').trim())
+    .map((line) => line.replace(/^[\u2022*-]\s*/, '').trim())
     .filter((line) => line.length > 0 && !isCategoryHeadingLine(line));
 }

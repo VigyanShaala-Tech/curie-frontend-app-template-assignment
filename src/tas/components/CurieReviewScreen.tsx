@@ -18,12 +18,14 @@ import { AssignmentForm } from './AssignmentForm';
 import { ConfirmEditAssignmentModal } from './ConfirmEditAssignmentModal';
 import { PdfPoller } from './PdfPoller';
 import {
+  AWAITING_APPROVAL_LABEL,
   CAP_REACHED_MESSAGE,
   HISTORICAL_FAILED_COPY,
+  INSTRUCTOR_APPROVED_NOTE,
+  INSTRUCTOR_MODIFIED_NOTE,
   learnerVerdictLabel,
   orderFieldFeedback,
 } from '../utils/curieReview';
-import { hasMissingRequiredFields } from '../utils/activeFields';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
 import type {
   LearnerCurieReview,
@@ -35,7 +37,12 @@ interface Props {
   template: Template;
   displayState: Extract<
   DisplayState,
-  'pending' | 'awaiting_instructor_review' | 'live_failed' | 'curie_accepted' | 'curie_rejected'
+  | 'pending'
+  | 'awaiting_instructor_review'
+  | 'awaiting_approval'
+  | 'live_failed'
+  | 'curie_accepted'
+  | 'curie_rejected'
   >;
   review: LearnerCurieReview | null;
   title: string;
@@ -90,7 +97,8 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const [pendingPinScroll, setPendingPinScroll] = useState<string | null>(null);
 
   const awaitingReview = displayState === 'awaiting_instructor_review';
-  const pending = displayState === 'pending' || awaitingReview;
+  const awaitingApproval = displayState === 'awaiting_approval';
+  const pending = displayState === 'pending' || awaitingReview || awaitingApproval;
   const liveFailed = displayState === 'live_failed';
   const accepted = displayState === 'curie_accepted';
   const rejected = displayState === 'curie_rejected';
@@ -134,7 +142,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
   const showStars = Boolean(
     review?.star_rating != null && orderedFeedback.length > 0,
   );
-  const allowReattempt = !historical && canReattempt && !atMaxAttempts;
+  const allowReattempt = !historical && !pending && canReattempt && !atMaxAttempts;
   const showCap = !historical && (rejected || liveFailed) && atMaxAttempts;
   const historyHref = `/submission/${encodeURIComponent(usageKey)}/history`;
 
@@ -142,14 +150,16 @@ export const CurieReviewScreen: React.FC<Props> = ({
     review?.status,
     review?.verdict ?? (accepted ? 'accepted' : 'rejected'),
   );
-  if (pending) {
+  if (awaitingApproval) {
+    verdictLabel = AWAITING_APPROVAL_LABEL;
+  } else if (pending) {
     verdictLabel = awaitingReview || awaitingInstructorApproval
       ? 'Awaiting Instructor Review'
       : 'Pending Evaluation';
   } else if (liveFailed) {
     verdictLabel = 'Review Unavailable';
   }
-  let verdictClass = '';
+  let verdictClass = awaitingApproval || awaitingReview ? 'awaiting' : '';
   if (!pending && !liveFailed) {
     verdictClass = accepted || review?.verdict === 'accepted' ? 'accepted' : 'rejected';
   }
@@ -158,6 +168,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     setDraft({ ...formData });
     setEditing(true);
     setPreviewingDraft(false);
+    setEditConfirmOpen(false);
     setMobileTab('worksheet');
   };
 
@@ -186,8 +197,17 @@ export const CurieReviewScreen: React.FC<Props> = ({
     }
   };
 
+  let sourceNote: string | null = null;
+  if (review?.status === 'approved') {
+    sourceNote = review.feedback_source === 'human' || review.approval_modified
+      ? INSTRUCTOR_MODIFIED_NOTE
+      : INSTRUCTOR_APPROVED_NOTE;
+  }
+
   let reviewBody: React.ReactNode;
-  if (pending) {
+  if (awaitingApproval) {
+    reviewBody = <CurieReviewPending variant="awaiting_approval" />;
+  } else if (pending) {
     let pendingVariant: 'pending' | 'slow' | 'awaiting_approval' = 'pending';
     if (awaitingReview || awaitingInstructorApproval) {
       pendingVariant = 'awaiting_approval';
@@ -210,6 +230,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     reviewBody = (
       <div>
         <h3 className="curie-review-heading">{reviewLabel}</h3>
+        {sourceNote && <p className="curie-source-note">{sourceNote}</p>}
         {showStars && <CurieStarRating rating={review?.star_rating} />}
         <div className="curie-section-title">Overall Feedback</div>
         <div className="curie-overall-feedback">
@@ -231,7 +252,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     </button>
   );
 
-  const submitBlocked = isSaving || hasMissingRequiredFields(template, draft);
+  const submitBlocked = isSaving;
 
   let leftActions: React.ReactNode = null;
   if (editing) {
@@ -357,9 +378,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                   className="curie-edit-form"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    if (!hasMissingRequiredFields(template, draft)) {
-                      onRequestSubmit(draft);
-                    }
+                    onRequestSubmit(draft);
                   }}
                 >
                   <AssignmentForm
@@ -368,6 +387,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                     onChange={(fieldId, value) => setDraft((current) => ({ ...current, [fieldId]: value }))}
                     isMobile={isMobile}
                     resubmissionMode
+                    mode="overview"
                   />
                 </form>
               ) : (

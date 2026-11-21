@@ -8,7 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button, Badge, Spinner, Form, Alert,
 } from '@openedx/paragon';
-import { Add, ArrowBack, Close, Edit } from '@openedx/paragon/icons';
+import {
+  Add, ArrowBack, Close, Edit,
+} from '@openedx/paragon/icons';
 import { templateTypesApi } from '../../services/api';
 import type { TemplateType } from '../../types';
 
@@ -46,8 +48,7 @@ export const AdminTemplateTypeManager: React.FC<Props> = ({ onBack }) => {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<Omit<TemplateType, 'id'>> }) =>
-      templateTypesApi.update(id, body),
+    mutationFn: ({ id, body }: { id: string; body: Partial<Omit<TemplateType, 'id'>> }) => templateTypesApi.update(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['template-types-all'] });
       qc.invalidateQueries({ queryKey: ['template-types'] });
@@ -79,7 +80,9 @@ export const AdminTemplateTypeManager: React.FC<Props> = ({ onBack }) => {
     if (!form.name.trim()) { setError('Name is required.'); return; }
     if (!form.slug.trim()) { setError('Slug is required.'); return; }
     setError('');
-    const body = { name: form.name.trim(), slug: form.slug.trim(), description: form.description.trim(), is_active: true };
+    const body = {
+      name: form.name.trim(), slug: form.slug.trim(), description: form.description.trim(), is_active: true,
+    };
     if (editingId) {
       updateMut.mutate({ id: editingId, body });
     } else {
@@ -151,7 +154,10 @@ export const AdminTemplateTypeManager: React.FC<Props> = ({ onBack }) => {
               size="sm"
               rows={2}
               value={form.description}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((p) => ({ ...p, description: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((p) => ({
+                ...p,
+                description: e.target.value,
+              }))}
               placeholder="Optional description…"
               style={{ resize: 'none' }}
             />
@@ -165,9 +171,9 @@ export const AdminTemplateTypeManager: React.FC<Props> = ({ onBack }) => {
               onClick={handleSubmit}
               disabled={isPending}
             >
-              {isPending
-                ? <Spinner animation="border" size="sm" screenReaderText="Saving" />
-                : editingId ? 'Save Changes' : 'Create Type'}
+              {isPending && <Spinner animation="border" size="sm" screenReaderText="Saving" />}
+              {!isPending && editingId && 'Save Changes'}
+              {!isPending && !editingId && 'Create Type'}
             </Button>
             {editingId && (
               <Button variant="tertiary" size="sm" iconBefore={Close} onClick={cancelEdit}>
@@ -227,7 +233,7 @@ export const AdminTemplateTypeManager: React.FC<Props> = ({ onBack }) => {
                   className="text-danger"
                   iconBefore={Close}
                   onClick={() => {
-                    if (window.confirm(`Deactivate "${tt.name}"?`)) deleteMut.mutate(tt.id);
+                    if (window.confirm(`Deactivate "${tt.name}"?`)) { deleteMut.mutate(tt.id); }
                   }}
                   disabled={deleteMut.isPending || !tt.is_active}
                 >

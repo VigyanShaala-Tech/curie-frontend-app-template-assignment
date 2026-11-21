@@ -23,9 +23,9 @@ export function clampTextToLongestPrefix(
   layout: FieldLayoutMetrics,
   fits: TextFitsFn = textFitsInField,
 ): string {
-  if (!text) return '';
-  if (fits(text, layout)) return text;
-  if (!fits(text.slice(0, 1), layout)) return '';
+  if (!text) { return ''; }
+  if (fits(text, layout)) { return text; }
+  if (!fits(text.slice(0, 1), layout)) { return ''; }
 
   let lo = 1;
   let hi = text.length;
@@ -101,8 +101,8 @@ export function clampFormDataToFields(
 
   Object.entries(layoutsByFieldId).forEach(([fieldId, layout]) => {
     const value = formData[fieldId] ?? '';
-    if (!value) return;
-    if (fits(value, layout)) return;
+    if (!value) { return; }
+    if (fits(value, layout)) { return; }
     const clamped = clampTextToLongestPrefix(value, layout, fits);
     next[fieldId] = clamped;
     capacityFull[fieldId] = true;

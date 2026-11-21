@@ -36,7 +36,9 @@ describe('resolveFieldLayout', () => {
     required: true,
     fontSize: 12,
   };
-  const position: FieldPosition = { x: 10, y: 20, width: 50, height: 10 };
+  const position: FieldPosition = {
+    x: 10, y: 20, width: 50, height: 10,
+  };
 
   it('resolves box and content sizes from % positions', () => {
     const layout = resolveFieldLayout(field, position, 800, 1000);

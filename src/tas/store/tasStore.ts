@@ -78,18 +78,17 @@ export const useTasStore = create<TasState>((set, get) => ({
   // Template
   selectedTemplate: null,
   selectedTemplateBlockId: null,
-  setSelectedTemplate: (template, templateBlockId = null) =>
-    set({
-      selectedTemplate: template,
-      selectedTemplateBlockId: templateBlockId,
-      formData: {},
-      fieldCapacityFull: {},
-      submission: null,
-      canvasState: DEFAULT_CANVAS,
-      selectedFieldId: null,
-      isFieldEditorOpen: false,
-      isPreviewMode: false,
-    }),
+  setSelectedTemplate: (template, templateBlockId = null) => set({
+    selectedTemplate: template,
+    selectedTemplateBlockId: templateBlockId,
+    formData: {},
+    fieldCapacityFull: {},
+    submission: null,
+    canvasState: DEFAULT_CANVAS,
+    selectedFieldId: null,
+    isFieldEditorOpen: false,
+    isPreviewMode: false,
+  }),
 
   // Submission
   submission: null,
@@ -97,31 +96,28 @@ export const useTasStore = create<TasState>((set, get) => ({
 
   // Form data
   formData: {},
-  setFormValue: (fieldId, value) =>
-    set((state) => ({ formData: { ...state.formData, [fieldId]: value } })),
+  setFormValue: (fieldId, value) => set((state) => ({ formData: { ...state.formData, [fieldId]: value } })),
   setFormData: (data) => set({ formData: data }),
   clearFormData: () => set({ formData: {}, fieldCapacityFull: {} }),
 
   // Capacity warnings
   fieldCapacityFull: {},
-  setFieldCapacityFull: (fieldId, full) =>
-    set((state) => {
-      if (!full) {
-        if (!state.fieldCapacityFull[fieldId]) return state;
-        const next = { ...state.fieldCapacityFull };
-        delete next[fieldId];
-        return { fieldCapacityFull: next };
-      }
-      if (state.fieldCapacityFull[fieldId]) return state;
-      return { fieldCapacityFull: { ...state.fieldCapacityFull, [fieldId]: true } };
-    }),
+  setFieldCapacityFull: (fieldId, full) => set((state) => {
+    if (!full) {
+      if (!state.fieldCapacityFull[fieldId]) { return state; }
+      const next = { ...state.fieldCapacityFull };
+      delete next[fieldId];
+      return { fieldCapacityFull: next };
+    }
+    if (state.fieldCapacityFull[fieldId]) { return state; }
+    return { fieldCapacityFull: { ...state.fieldCapacityFull, [fieldId]: true } };
+  }),
   setFieldCapacityFullMap: (map) => set({ fieldCapacityFull: map }),
   clearFieldCapacityFull: () => set({ fieldCapacityFull: {} }),
 
   // Canvas
   canvasState: DEFAULT_CANVAS,
-  setCanvasState: (newState) =>
-    set((state) => ({ canvasState: { ...state.canvasState, ...newState } })),
+  setCanvasState: (newState) => set((state) => ({ canvasState: { ...state.canvasState, ...newState } })),
   resetCanvasState: () => set({ canvasState: DEFAULT_CANVAS }),
 
   // Selected field
@@ -130,10 +126,8 @@ export const useTasStore = create<TasState>((set, get) => ({
 
   // Field editor
   isFieldEditorOpen: false,
-  openFieldEditor: (fieldId) =>
-    set({ isFieldEditorOpen: true, selectedFieldId: fieldId }),
-  closeFieldEditor: () =>
-    set({ isFieldEditorOpen: false, selectedFieldId: null }),
+  openFieldEditor: (fieldId) => set({ isFieldEditorOpen: true, selectedFieldId: fieldId }),
+  closeFieldEditor: () => set({ isFieldEditorOpen: false, selectedFieldId: null }),
 
   // View
   isPreviewMode: false,
@@ -150,19 +144,18 @@ export const useTasStore = create<TasState>((set, get) => ({
   // Helpers
   getSelectedField: () => {
     const { selectedTemplate, selectedFieldId } = get();
-    if (!selectedTemplate || !selectedFieldId) return null;
+    if (!selectedTemplate || !selectedFieldId) { return null; }
     return selectedTemplate.fields.find((f) => f.id === selectedFieldId) || null;
   },
-  clearSelection: () =>
-    set({
-      selectedTemplate: null,
-      selectedTemplateBlockId: null,
-      submission: null,
-      formData: {},
-      fieldCapacityFull: {},
-      selectedFieldId: null,
-      isFieldEditorOpen: false,
-      isPreviewMode: false,
-      canvasState: DEFAULT_CANVAS,
-    }),
+  clearSelection: () => set({
+    selectedTemplate: null,
+    selectedTemplateBlockId: null,
+    submission: null,
+    formData: {},
+    fieldCapacityFull: {},
+    selectedFieldId: null,
+    isFieldEditorOpen: false,
+    isPreviewMode: false,
+    canvasState: DEFAULT_CANVAS,
+  }),
 }));

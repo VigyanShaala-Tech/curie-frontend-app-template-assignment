@@ -8,6 +8,8 @@ import type { AssignmentStep } from '../utils/assignmentStructure';
 import { applyTextCandidate } from '../utils/clampTextToField';
 import { resolveFieldLayout } from '../utils/fieldLayout';
 
+export type AssignmentFormMode = 'wizard' | 'overview';
+
 interface Props {
   template: Template;
   values: Record<string, string>;
@@ -19,6 +21,11 @@ interface Props {
    * (reattempt / reopen). First-time drafts keep the step-by-step UI.
    */
   resubmissionMode?: boolean;
+  /**
+   * Remote CURIE API: `overview` is equivalent to resubmissionMode.
+   * Either this or `resubmissionMode` may be used.
+   */
+  mode?: AssignmentFormMode;
   onActiveFieldChange?: (fieldId: string | null) => void;
 }
 
@@ -39,15 +46,20 @@ const syncTextareaHeight = (el: HTMLTextAreaElement | null) => {
     return;
   }
   // Reset to auto so scrollHeight reflects wrapped content, then expand.
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
+  el.style.setProperty('height', 'auto');
+  el.style.setProperty('height', `${el.scrollHeight}px`);
 };
 
-const AutoResizeTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = ({
+interface AutoResizeTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  value?: React.TextareaHTMLAttributes<HTMLTextAreaElement>['value'];
+  onInput?: React.TextareaHTMLAttributes<HTMLTextAreaElement>['onInput'];
+}
+
+const AutoResizeTextarea = ({
   value,
   onInput,
   ...rest
-}) => {
+}: AutoResizeTextareaProps) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -239,28 +251,30 @@ export const AssignmentForm: React.FC<Props> = ({
   isMobile,
   readOnly = false,
   resubmissionMode = false,
+  mode,
   onActiveFieldChange,
 }) => {
+  const isOverview = mode === 'overview' || resubmissionMode;
   const [capacityFull, setCapacityFull] = useState<Record<string, boolean>>({});
   const steps = useMemo(
     () => buildAssignmentSteps(getActiveFields(template)),
     [template],
   );
   const [activeStepKey, setActiveStepKey] = useState<string | null>(steps[0]?.key ?? null);
-  /** In resubmission mode, null means the saved-responses overview. */
+  /** In overview/resubmission mode, null means the saved-responses overview. */
   const [resubmissionEditKey, setResubmissionEditKey] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const requestedIndex = steps.findIndex((step) => step.key === activeStepKey);
   const activeIndex = requestedIndex >= 0 ? requestedIndex : 0;
   const activeStep = steps[activeIndex];
-  const showResubmissionOverview = resubmissionMode
+  const showResubmissionOverview = isOverview
     && (resubmissionEditKey == null || readOnly);
 
   useEffect(() => {
-    if (!resubmissionMode) {
+    if (!isOverview) {
       setResubmissionEditKey(null);
     }
-  }, [resubmissionMode]);
+  }, [isOverview]);
 
   // Preview (read-only) always shows the full responses overview.
   useEffect(() => {
@@ -329,6 +343,12 @@ export const AssignmentForm: React.FC<Props> = ({
     return <div className="assignment-form assignment-form--empty">No assignment fields are configured.</div>;
   }
 
+  const formClassName = [
+    'assignment-form',
+    isMobile ? 'assignment-form--mobile' : '',
+    isOverview ? 'assignment-form--overview' : '',
+  ].filter(Boolean).join(' ');
+
   const renderField = (field: FormField, hideVisualLabel = false) => (
     <FieldControl
       key={field.id}
@@ -382,7 +402,7 @@ export const AssignmentForm: React.FC<Props> = ({
 
   if (showResubmissionOverview) {
     return (
-      <div className={`assignment-form${isMobile ? ' assignment-form--mobile' : ''}`} aria-label="Assignment form">
+      <div className={formClassName} aria-label="Assignment form">
         <div className="assignment-progress">
           <div className="assignment-progress__meta">Step {steps.length} of {steps.length}</div>
         </div>
@@ -403,6 +423,7 @@ export const AssignmentForm: React.FC<Props> = ({
                   <button
                     type="button"
                     className="assignment-earlier-card__edit"
+                    aria-label={`Edit ${step.title}`}
                     onClick={() => openResubmissionSection(index)}
                   >
                     Edit
@@ -416,13 +437,13 @@ export const AssignmentForm: React.FC<Props> = ({
     );
   }
 
-  const editingStep = resubmissionMode && resubmissionEditKey
+  const editingStep = isOverview && resubmissionEditKey
     ? (steps.find((step) => step.key === resubmissionEditKey) ?? activeStep)
     : activeStep;
   const editingIndex = steps.findIndex((step) => step.key === editingStep.key);
 
   return (
-    <div className={`assignment-form${isMobile ? ' assignment-form--mobile' : ''}`} aria-label="Assignment form">
+    <div className={formClassName} aria-label="Assignment form">
       <div className="assignment-progress">
         <div className="assignment-progress__meta">Step {editingIndex + 1} of {steps.length}</div>
       </div>
@@ -444,7 +465,7 @@ export const AssignmentForm: React.FC<Props> = ({
       </section>
 
       <div className="assignment-step-actions">
-        {resubmissionMode ? (
+        {isOverview ? (
           <button
             type="button"
             className="assignment-step-actions__secondary"

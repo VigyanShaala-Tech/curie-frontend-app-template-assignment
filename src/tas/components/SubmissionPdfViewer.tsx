@@ -77,7 +77,7 @@ export const SubmissionPdfViewer: React.FC<Props> = ({
           )}
           <button
             type="button"
-            onClick={() => { void downloadPdf(pdfUrl, downloadFilename); }}
+            onClick={() => { downloadPdf(pdfUrl, downloadFilename); }}
             style={actionBtnStyle}
           >
             ↓ Download PDF

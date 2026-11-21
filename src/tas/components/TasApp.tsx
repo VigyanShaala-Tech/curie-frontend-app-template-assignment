@@ -31,10 +31,14 @@ import { useBackNavigationGuard } from '../hooks/useBackNavigationGuard';
 import { usePendingReviewPolling } from '../hooks/usePendingReviewPolling';
 import { submissionsApi, formatApiError } from '../services/api';
 import { deriveLifecycle } from '../lifecycle/deriveLifecycle';
+import {
+  AWAITING_APPROVAL_POLL_INTERVAL_MS,
+  CURIE_STATUS_READY_FOR_APPROVAL,
+  PENDING_POLL_INTERVAL_MS,
+} from '../lifecycle/constants';
 import { navigateBackToAssignment } from '../utils/navigateBackToAssignment';
 import {
   getActiveFields,
-  hasMissingRequiredFields,
   isFieldEmpty,
 } from '../utils/activeFields';
 import { isResubmissionForm } from '../utils/resubmissionForm';
@@ -164,17 +168,20 @@ export const TasApp: React.FC = () => {
     }
   }, [selectedTemplate]);
 
-  // Pending-only refresh. Stops on ready/failed or unmount; refetches on focus.
+  // Pending/awaiting-approval refresh. Stops on release/failure or unmount; refetches on focus.
+  const awaitingApproval = submission?.curie_review_status === CURIE_STATUS_READY_FOR_APPROVAL;
   const shouldPoll = Boolean(
     submission?.id
     && submission.status !== 'draft'
     && (submission.awaiting_instructor_approval
+      || awaitingApproval
       || submission.curie_review_status === 'pending_evaluation'
       || (submission.curie_review_status == null && !submission.feedback)),
   );
   const { observedPending } = usePendingReviewPolling({
     enabled: Boolean(submission?.id && submission.status !== 'draft'),
     isPending: shouldPoll,
+    intervalMs: awaitingApproval ? AWAITING_APPROVAL_POLL_INTERVAL_MS : PENDING_POLL_INTERVAL_MS,
     identity: submission
       ? `${submission.id}:${submission.version_number}`
       : null,
@@ -206,6 +213,7 @@ export const TasApp: React.FC = () => {
   const reviewDisplayState = structuredHumanDisplayState
     ?? (lifecycle.displayState === 'pending'
       || lifecycle.displayState === 'awaiting_instructor_review'
+      || lifecycle.displayState === 'awaiting_approval'
       || lifecycle.displayState === 'live_failed'
       || lifecycle.displayState === 'curie_accepted'
       || lifecycle.displayState === 'curie_rejected'
@@ -637,6 +645,8 @@ export const TasApp: React.FC = () => {
 
   const isLocked = lifecycle.isCanvasReadOnly;
   const isRejected = lifecycle.useLegacyReopen;
+  const submitBlocked = isSaving || !submission;
+  const assignmentFormMode = isResubmissionForm(submission) ? 'overview' : 'wizard';
   const backGuardEnabled = Boolean(
     selectedTemplate && submission && submission.status === 'draft',
   );
@@ -806,9 +816,6 @@ export const TasApp: React.FC = () => {
     transition: 'opacity 0.15s',
     whiteSpace: 'nowrap',
   };
-  const submitBlocked = isSaving
-    || !submission
-    || hasMissingRequiredFields(selectedTemplate, formData);
 
   return (
     <div className="d-flex flex-column h-100 tas-submission-root">
@@ -993,6 +1000,7 @@ export const TasApp: React.FC = () => {
                   onChange={setFormValue}
                   isMobile={isMobile}
                   resubmissionMode={isResubmissionForm(submission)}
+                  mode={assignmentFormMode}
                 />
               </div>
             )}

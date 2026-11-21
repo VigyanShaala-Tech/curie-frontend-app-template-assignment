@@ -9,10 +9,10 @@ export function buildAssignmentJumpToUrl(courseId: string, usageKey: string): st
 
 /** True when browser history can reliably return to a prior page. */
 export function canUseBrowserHistoryBack(): boolean {
-  if (window.history.length <= 1) return false;
+  if (window.history.length <= 1) { return false; }
 
   const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-  if (navEntry?.type === 'reload') return false;
+  if (navEntry?.type === 'reload') { return false; }
 
   return true;
 }

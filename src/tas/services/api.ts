@@ -139,6 +139,8 @@ function mapLearnerCurieReview(raw: any): LearnerCurieReview {
     overall_feedback: raw.overall_feedback ?? '',
     field_feedback: raw.field_feedback ?? [],
     star_rating: raw.star_rating ?? null,
+    feedback_source: raw.feedback_source ?? null,
+    approval_modified: Boolean(raw.approval_modified),
     is_slow_pending: Boolean(raw.is_slow_pending),
     submission_version_number: raw.submission_version_number,
     error_detail: raw.error_detail ?? '',
@@ -606,4 +608,34 @@ export const adminSubmissionsApi = {
       `${tasBase()}/submissions/${submissionId}/feedback/withdraw/`,
     );
   },
+
+  approveCurieReview: async (
+    submissionId: string,
+    payload: CurieApprovalRequest,
+  ): Promise<any> => {
+    const { data } = await http().post(
+      `${tasBase()}/submissions/${submissionId}/curie-review/approve/`,
+      payload,
+    );
+    return data;
+  },
 };
+
+export interface CurieCriterionScore {
+  criterion: string;
+  score: number;
+  max_score: number;
+}
+
+export interface CurieApprovalRequest {
+  action: 'approve' | 'override';
+  submission_version_number: number;
+  trigger_id?: string;
+  overall_feedback?: string;
+  gate_criterion_scores?: CurieCriterionScore[];
+  field_feedback?: Array<{
+    field_id: string;
+    comment: string;
+    criterion_scores: CurieCriterionScore[];
+  }>;
+}

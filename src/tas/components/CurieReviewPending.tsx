@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  AWAITING_INSTRUCTOR_APPROVAL_COPY,
+  AWAITING_APPROVAL_COPY,
   LIVE_FAILED_COPY,
   PENDING_COPY,
   SLOW_PENDING_COPY,
@@ -25,7 +25,7 @@ export const CurieReviewPending: React.FC<Props> = ({ variant }) => {
       <div>
         <h3 className="curie-review-heading">Curie Review</h3>
         <p className="curie-pending-note" role="status">
-          {AWAITING_INSTRUCTOR_APPROVAL_COPY}
+          {AWAITING_APPROVAL_COPY}
         </p>
       </div>
     );

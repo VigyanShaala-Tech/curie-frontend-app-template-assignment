@@ -111,7 +111,11 @@ export interface BlockTemplatesResponse {
 
 export type SubmissionStatus = 'draft' | 'submitted' | 'rejected' | 'approved';
 export type FeedbackSource = 'human' | 'curie';
-export type CurieReviewStatus = 'pending_evaluation' | 'ready' | 'failed';
+/**
+ * `ready` is the legacy auto-published state. New reviews go
+ * `pending_evaluation` → `ready_for_approval` → `approved` (or `failed`).
+ */
+export type CurieReviewStatus = 'pending_evaluation' | 'ready' | 'ready_for_approval' | 'approved' | 'failed';
 export type CurieVerdict = 'accepted' | 'rejected';
 export type FieldColor = 'needs_revision' | 'could_improve' | 'good' | null;
 
@@ -185,6 +189,7 @@ export interface SubmissionFeedback {
   field_feedback?: CurieFieldFeedback[];
   star_rating?: number | null;
   structured_feedback?: StructuredFeedback;
+  approval_modified?: boolean;
 }
 
 export interface LearnerCurieReview {
@@ -194,6 +199,9 @@ export interface LearnerCurieReview {
   overall_feedback: string;
   field_feedback: CurieFieldFeedback[];
   star_rating: number | null;
+  /** Who authored the released feedback; null until published. */
+  feedback_source?: FeedbackSource | null;
+  approval_modified?: boolean;
   is_slow_pending: boolean;
   submission_version_number: number;
   error_detail: string;
