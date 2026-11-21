@@ -1,4 +1,5 @@
 import {
+  areRequiredFieldsComplete,
   getActiveFields,
   hasMissingRequiredFields,
   isFieldEmpty,
@@ -36,11 +37,23 @@ const makeTemplate = (fields: FormField[]): Template => ({
   updated_at: '',
 });
 
+const remoteTemplate: Template = makeTemplate([
+  field({ id: 'goal', label: 'Goal', required: true }),
+  field({ id: 'strength', label: 'Strength', required: true }),
+  field({ id: 'note', label: 'Note', required: false }),
+]);
+
 describe('activeFields', () => {
   it('treats blank and whitespace-only values as empty', () => {
     expect(isFieldEmpty({}, 'goal')).toBe(true);
     expect(isFieldEmpty({ goal: '   ' }, 'goal')).toBe(true);
     expect(isFieldEmpty({ goal: 'ok' }, 'goal')).toBe(false);
+  });
+
+  it('lists only fields with positions', () => {
+    expect(getActiveFields(remoteTemplate).map((item) => item.id)).toEqual([
+      'goal', 'strength', 'note',
+    ]);
   });
 
   it('only considers positioned fields active', () => {
@@ -59,5 +72,24 @@ describe('activeFields', () => {
     expect(hasMissingRequiredFields(template, {})).toBe(true);
     expect(hasMissingRequiredFields(template, { goal: 'Done' })).toBe(false);
     expect(hasMissingRequiredFields(template, { goal: 'Done', notes: '' })).toBe(false);
+  });
+
+  it('requires all mandatory active fields, ignoring optional empties', () => {
+    expect(areRequiredFieldsComplete(remoteTemplate, {
+      goal: 'A',
+      strength: 'B',
+    })).toBe(true);
+
+    expect(areRequiredFieldsComplete(remoteTemplate, {
+      goal: 'A',
+      strength: '',
+      note: 'optional filled',
+    })).toBe(false);
+
+    expect(areRequiredFieldsComplete(remoteTemplate, {
+      goal: 'A',
+      strength: 'B',
+      note: '',
+    })).toBe(true);
   });
 });

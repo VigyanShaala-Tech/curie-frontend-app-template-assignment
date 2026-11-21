@@ -52,12 +52,12 @@ export function buildAssignmentSections(fields: FormField[]): AssignmentSection[
       return;
     }
 
-    const section = {
+    const section: AssignmentSection = {
       key: `section:${key}`,
       title: sectionTitle,
       displayStyle: field.displayStyle ?? 'cards',
       fields: [field],
-    } satisfies AssignmentSection;
+    };
     named.set(key, section);
     sections.push(section);
   });
@@ -71,20 +71,24 @@ export function buildAssignmentSections(fields: FormField[]): AssignmentSection[
  * large assignments navigable without changing field IDs or stored answers.
  */
 export function buildAssignmentSteps(fields: FormField[]): AssignmentStep[] {
-  return buildAssignmentSections(fields).flatMap((section) => {
+  return buildAssignmentSections(fields).flatMap((section): AssignmentStep[] => {
     if (section.displayStyle === 'table') {
       const rows = Array.from(new Set(
         section.fields.map((field) => field.tableRow?.trim() || field.label),
       ));
-      return rows.map((row) => ({
-        key: `${section.key}:row:${row.toLocaleLowerCase()}`,
-        title: row,
-        sectionTitle: section.title,
-        displayStyle: section.displayStyle,
-        fields: section.fields.filter(
+      return rows.map((row) => {
+        const rowFields = section.fields.filter(
           (field) => (field.tableRow?.trim() || field.label) === row,
-        ),
-      })).map((step) => ({ ...step, instruction: stepInstruction(step.fields) }));
+        );
+        return {
+          key: `${section.key}:row:${row.toLocaleLowerCase()}`,
+          title: row,
+          sectionTitle: section.title,
+          displayStyle: section.displayStyle,
+          fields: rowFields,
+          instruction: stepInstruction(rowFields),
+        };
+      });
     }
 
     if (section.displayStyle === 'stages') {
@@ -106,7 +110,7 @@ export function buildAssignmentSteps(fields: FormField[]): AssignmentStep[] {
             ordinal: Math.min(
               ...stageFields.map((field) => field.stageOrder ?? Number.MAX_SAFE_INTEGER),
             ),
-          } satisfies AssignmentStep;
+          };
         })
         .sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
     }

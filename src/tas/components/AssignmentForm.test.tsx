@@ -42,6 +42,28 @@ const swotFields: FormField[] = [
   },
 ];
 
+const remoteSwotTemplate: Template = makeTemplate([
+  {
+    id: 'strengths', label: 'Strengths', type: 'textarea', required: true, section: 'Strengths',
+  },
+  {
+    id: 'weaknesses', label: 'Weaknesses', type: 'textarea', required: true, section: 'Weaknesses',
+  },
+  {
+    id: 'opportunities', label: 'Opportunities', type: 'textarea', required: true, section: 'Opportunities',
+  },
+  {
+    id: 'threats', label: 'Threats', type: 'textarea', required: true, section: 'Threats',
+  },
+]);
+
+const remoteFilled = {
+  strengths: 'Strong analytical skills',
+  weaknesses: 'Tend to overthink',
+  opportunities: 'Growing demand for AI',
+  threats: 'High competition',
+};
+
 describe('AssignmentForm', () => {
   it('renders a normal Name & College text field and reuses maxChars', async () => {
     const user = userEvent.setup();
@@ -84,13 +106,36 @@ describe('AssignmentForm', () => {
     expect(screen.getByText('Step 1 of 4')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Strengths' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Weaknesses →' }));
     expect(screen.getByRole('heading', { name: 'Weaknesses' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '← Strengths' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Earlier answers' })).toBeNull();
     expect(screen.queryByText('Curious')).toBeNull();
+  });
+
+  it('wizard mode shows one step at a time without Earlier answers', async () => {
+    render(
+      <AssignmentForm
+        template={remoteSwotTemplate}
+        values={remoteFilled}
+        onChange={jest.fn()}
+        isMobile={false}
+        mode="wizard"
+      />,
+    );
+
+    expect(screen.getByText('Step 1 of 4')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Strengths' })).toBeTruthy();
+    expect(screen.queryByText('Earlier answers')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit Strengths' })).toBeNull();
+    expect(screen.queryByLabelText('Weaknesses')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Weaknesses →' }));
+    expect(screen.getByText('Step 2 of 4')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Weaknesses' })).toBeTruthy();
+    expect(screen.queryByText('Earlier answers')).toBeNull();
   });
 
   it('renders template text response fields as auto-growing textareas, not single-line inputs', () => {
@@ -193,10 +238,10 @@ describe('AssignmentForm', () => {
     expect(screen.getByText('Planning')).toBeTruthy();
     expect(screen.getByText('AI demand')).toBeTruthy();
     expect(screen.getByText('Time pressure')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(4);
+    expect(screen.getAllByRole('button', { name: /^Edit / })).toHaveLength(4);
     expect(screen.queryByRole('button', { name: 'Weaknesses →' })).toBeNull();
 
-    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Edit / })[0]);
     expect(screen.getByRole('heading', { name: 'Strengths' })).toBeTruthy();
     const strength = screen.getByRole('textbox', { name: 'Strengths' }) as HTMLTextAreaElement;
     expect(strength.value).toBe('Curious');
@@ -227,7 +272,40 @@ describe('AssignmentForm', () => {
       />,
     );
     expect(screen.getByText('Updated strength')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+  });
+
+  it('overview mode lists all saved responses and Edit opens then returns', async () => {
+    const onChange = jest.fn();
+    render(
+      <AssignmentForm
+        template={remoteSwotTemplate}
+        values={remoteFilled}
+        onChange={onChange}
+        isMobile={false}
+        mode="overview"
+      />,
+    );
+
+    expect(screen.getByText('Earlier answers')).toBeTruthy();
+    expect(screen.getByText('Strong analytical skills')).toBeTruthy();
+    expect(screen.getByText('Tend to overthink')).toBeTruthy();
+    expect(screen.getByText('Growing demand for AI')).toBeTruthy();
+    expect(screen.getByText('High competition')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Weaknesses →' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Opportunities' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Opportunities' })).toBeTruthy();
+    const input = screen.getByLabelText('Opportunities') as HTMLTextAreaElement;
+    expect(input.value).toBe('Growing demand for AI');
+
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Updated opportunities');
+    expect(onChange).toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: '← Back to responses' }));
+    expect(screen.getByText('Earlier answers')).toBeTruthy();
+    expect(screen.getByText('Tend to overthink')).toBeTruthy();
   });
 
   it('gives a required radio group an accessible question name', () => {
@@ -336,7 +414,7 @@ describe('AssignmentForm', () => {
     expect(screen.queryByText('Write clear Alpha points.')).toBeNull();
     expect(screen.queryByText('Alpha placeholder guidance.')).toBeNull();
 
-    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Edit / })[0]);
     expect(screen.getByRole('heading', { name: 'Alpha' })).toBeTruthy();
     expect(screen.getByText('Alpha section instructions for learners.')).toBeTruthy();
     expect(screen.getByText('Write clear Alpha points.')).toBeTruthy();
