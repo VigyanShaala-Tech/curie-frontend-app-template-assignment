@@ -120,7 +120,7 @@ export const InstructorCuriePanel: React.FC<Props> = ({
         </div>
       )}
 
-      {presentation.canPublish && (
+      {presentation.canPublish && !presentation.awaitingApproval && (
         <div className="alert alert-info small mb-3" role="status">
           {INSTRUCTOR_AWAITING_APPROVAL_COPY}
         </div>

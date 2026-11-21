@@ -426,6 +426,13 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
     && curiePresentation.showReadyOutput
     && submission.curie_review,
   );
+  const showCurieApprovalWorkflow = Boolean(
+    submission.curie_review
+    && (
+      submission.curie_review.status === 'ready_for_approval'
+      || submission.curie_review.awaiting_approval
+    ),
+  );
   const showGradingForm = !showStructuredOverride && (
     (
       isSubmitted
@@ -513,7 +520,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                   templateFields={submission.template_fields ?? {}}
                   overrideEditing={overrideEditing}
                 />
-                {curiePresentation.awaitingApproval && submission.curie_review && (
+                {showCurieApprovalWorkflow && submission.curie_review && (
                   <CurieApprovalActions
                     key={`${submissionId}:${submission.curie_review.trigger_id ?? submission.version}`}
                     submissionId={submissionId}
@@ -531,7 +538,7 @@ export const AdminSubmissionDetail: React.FC<Props> = ({ submissionId, onBack })
                     Approve and Reject stay disabled until CURIE finishes or times out.
                   </p>
                 )}
-                {curiePresentation.canPublish && !overrideEditing && (
+                {curiePresentation.canPublish && !overrideEditing && !showCurieApprovalWorkflow && (
                   <Button
                     variant="primary"
                     size="sm"
