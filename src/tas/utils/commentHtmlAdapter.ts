@@ -9,17 +9,6 @@ export function looksLikeHtml(value: string): boolean {
   return HTML_TAG_RE.test(value);
 }
 
-/** Quill empty document / whitespace-only → '' so API payloads match the old textarea. */
-export function normalizeEditorHtml(html: string): string {
-  if (!html || !html.trim()) {
-    return '';
-  }
-  if (!htmlToPlainText(html).trim()) {
-    return '';
-  }
-  return html;
-}
-
 export function htmlToPlainText(html: string): string {
   if (!html) {
     return '';
@@ -72,6 +61,17 @@ export function htmlToPlainText(html: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]+\n/g, '\n')
     .trimEnd();
+}
+
+/** Quill empty document / whitespace-only → '' so API payloads match the old textarea. */
+export function normalizeEditorHtml(html: string): string {
+  if (!html || !html.trim()) {
+    return '';
+  }
+  if (!htmlToPlainText(html).trim()) {
+    return '';
+  }
+  return html;
 }
 
 export function plainTextToHtml(plain: string): string {

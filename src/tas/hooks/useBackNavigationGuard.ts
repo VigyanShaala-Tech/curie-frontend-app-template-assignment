@@ -36,7 +36,7 @@ export function useBackNavigationGuard({ enabled, onBack }: Options): BackNaviga
     window.history.pushState(GUARD_STATE, '');
 
     const handlePopState = () => {
-      if (leavingRef.current) return;
+      if (leavingRef.current) { return; }
       window.history.pushState(GUARD_STATE, '');
       onBackRef.current();
     };

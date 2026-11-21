@@ -20,7 +20,9 @@ import { useTasStore } from '../store/tasStore';
 import type { Template, TemplateBlockItem } from '../types';
 
 export const TemplateSelector: React.FC = () => {
-  const { setSelectedTemplate, setMfeContext, submission, mfeContext } = useTasStore();
+  const {
+    setSelectedTemplate, setMfeContext, submission, mfeContext,
+  } = useTasStore();
   const usageKey = mfeContext?.usageKey ?? '';
   const autoSelectFired = useRef(false);
 
@@ -42,16 +44,17 @@ export const TemplateSelector: React.FC = () => {
   const blockData = blockQuery.data;
   const rawItems = blockData?.templates;
   // Backend returns a single object or array — normalise to array
-  const blockItems: TemplateBlockItem[] = rawItems
-    ? (Array.isArray(rawItems) ? rawItems : [rawItems])
-    : [];
+  let blockItems: TemplateBlockItem[] = [];
+  if (rawItems) {
+    blockItems = Array.isArray(rawItems) ? rawItems : [rawItems];
+  }
   const useBlockItems = blockItems.length > 0;
 
   // Auto-select when exactly one template is assigned to this block
   useEffect(() => {
-    if (autoSelectFired.current) return;
-    if (!useBlockItems || blockItems.length !== 1) return;
-    if (submission) return;
+    if (autoSelectFired.current) { return; }
+    if (!useBlockItems || blockItems.length !== 1) { return; }
+    if (submission) { return; }
 
     autoSelectFired.current = true;
     const item = blockItems[0];
@@ -114,23 +117,25 @@ export const TemplateSelector: React.FC = () => {
   const publicTemplates = publicQuery.data?.results ?? [];
   const displayTemplates: Template[] = useBlockItems
     ? blockItems.map((item) => ({
-        id: item.template.id,
-        name: item.template.name,
-        template_type: { id: '', ...item.template.template_type, description: '', icon: '', is_active: true },
-        template_type_id: '',
-        description: '',
-        image_url: '',
-        image_width: item.template.image_width,
-        image_height: item.template.image_height,
-        thumbnail_url: item.template.thumbnail_url ?? '',
-        fields: [],
-        field_positions: {},
-        is_public: true,
-        is_active: true,
-        created_by: '',
-        created_at: '',
-        updated_at: '',
-      } as Template))
+      id: item.template.id,
+      name: item.template.name,
+      template_type: {
+        id: '', ...item.template.template_type, description: '', icon: '', is_active: true,
+      },
+      template_type_id: '',
+      description: '',
+      image_url: '',
+      image_width: item.template.image_width,
+      image_height: item.template.image_height,
+      thumbnail_url: item.template.thumbnail_url ?? '',
+      fields: [],
+      field_positions: {},
+      is_public: true,
+      is_active: true,
+      created_by: '',
+      created_at: '',
+      updated_at: '',
+    } as Template))
     : publicTemplates;
 
   if (displayTemplates.length === 0) {
@@ -192,7 +197,10 @@ export const TemplateSelector: React.FC = () => {
                     style={{ minHeight: '220px', background: '#e8f0fe' }}
                   >
                     <svg width="64" height="64" fill="none" stroke="#93b4f7" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>

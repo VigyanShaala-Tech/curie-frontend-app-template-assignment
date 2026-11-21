@@ -9,7 +9,7 @@ import { fieldTextStyle } from './fieldLayout';
 const PROBE_ID = 'tas-field-fit-probe';
 
 function getProbe(): HTMLDivElement | null {
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') { return null; }
 
   let probe = document.getElementById(PROBE_ID) as HTMLDivElement | null;
   if (!probe) {
@@ -29,19 +29,20 @@ function getProbe(): HTMLDivElement | null {
 
 function applyProbeLayout(probe: HTMLDivElement, layout: FieldLayoutMetrics): void {
   const styles = fieldTextStyle(layout);
-  probe.style.width = `${layout.boxWidth}px`;
-  probe.style.height = `${layout.boxHeight}px`;
-  probe.style.overflow = 'hidden';
-  probe.style.fontFamily = String(styles.fontFamily ?? '');
-  probe.style.fontWeight = String(styles.fontWeight ?? '');
-  probe.style.fontSize = `${layout.fontSize}px`;
-  probe.style.lineHeight = String(styles.lineHeight ?? '');
-  probe.style.color = String(styles.color ?? '');
-  probe.style.padding = `${layout.padding}px`;
-  probe.style.boxSizing = 'border-box';
-  probe.style.whiteSpace = 'pre-wrap';
-  probe.style.overflowWrap = 'anywhere';
-  probe.style.wordBreak = 'break-word';
+  const node = probe.style;
+  node.setProperty('width', `${layout.boxWidth}px`);
+  node.setProperty('height', `${layout.boxHeight}px`);
+  node.setProperty('overflow', 'hidden');
+  node.setProperty('font-family', String(styles.fontFamily ?? ''));
+  node.setProperty('font-weight', String(styles.fontWeight ?? ''));
+  node.setProperty('font-size', `${layout.fontSize}px`);
+  node.setProperty('line-height', String(styles.lineHeight ?? ''));
+  node.setProperty('color', String(styles.color ?? ''));
+  node.setProperty('padding', `${layout.padding}px`);
+  node.setProperty('box-sizing', 'border-box');
+  node.setProperty('white-space', 'pre-wrap');
+  node.setProperty('overflow-wrap', 'anywhere');
+  node.setProperty('word-break', 'break-word');
 }
 
 /**
@@ -49,8 +50,8 @@ function applyProbeLayout(probe: HTMLDivElement, layout: FieldLayoutMetrics): vo
  * (no vertical or horizontal overflow under canonical styles).
  */
 export function textFitsInField(text: string, layout: FieldLayoutMetrics): boolean {
-  if (!text) return true;
-  if (layout.contentWidth <= 0 || layout.contentHeight <= 0) return false;
+  if (!text) { return true; }
+  if (layout.contentWidth <= 0 || layout.contentHeight <= 0) { return false; }
 
   const probe = getProbe();
   if (!probe) {

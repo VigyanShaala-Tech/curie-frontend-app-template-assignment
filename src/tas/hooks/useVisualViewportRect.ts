@@ -9,7 +9,9 @@ export interface VisualViewportRect {
 
 function getViewportRect(): VisualViewportRect {
   if (typeof window === 'undefined') {
-    return { top: 0, left: 0, width: 0, height: 0 };
+    return {
+      top: 0, left: 0, width: 0, height: 0,
+    };
   }
 
   const vv = window.visualViewport;
@@ -39,7 +41,7 @@ export function useVisualViewportRect(active: boolean): VisualViewportRect {
   const [rect, setRect] = useState<VisualViewportRect>(getViewportRect);
 
   useEffect(() => {
-    if (!active || typeof window === 'undefined') return undefined;
+    if (!active || typeof window === 'undefined') { return undefined; }
 
     const update = () => setRect(getViewportRect());
 

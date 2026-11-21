@@ -129,13 +129,22 @@ export const ConfirmSubmitModal: React.FC<Props> = ({
         title="Submit this assignment?"
         onClose={onClose}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
+        }}
+        >
           {titleIcon}
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
+          <h3 style={{
+            margin: 0, fontSize: 16, fontWeight: 700, color: '#111827',
+          }}
+          >
             Submit this assignment?
           </h3>
         </div>
-        <p style={{ margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>
+        <p style={{
+          margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5,
+        }}
+        >
           Once submitted, you will not be able to edit this assignment.
         </p>
         {footerButtons}
@@ -153,7 +162,10 @@ export const ConfirmSubmitModal: React.FC<Props> = ({
       isOverflowVisible={false}
     >
       <ModalDialog.Header>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8,
+        }}
+        >
           {titleIcon}
           <ModalDialog.Title style={{ margin: 0 }}>Submit this assignment?</ModalDialog.Title>
         </div>
@@ -161,7 +173,10 @@ export const ConfirmSubmitModal: React.FC<Props> = ({
 
       <ModalDialog.Body>
         <div style={{ maxWidth: 560, paddingBottom: 4 }}>
-          <p style={{ margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>
+          <p style={{
+            margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5,
+          }}
+          >
             Once submitted, you will not be able to edit this assignment.
           </p>
         </div>

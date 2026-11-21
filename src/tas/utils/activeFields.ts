@@ -5,7 +5,7 @@ import type { FormField, Template } from '../types';
  * template fields that have a position (present and editable on the canvas).
  */
 export function getActiveFields(template: Template | null | undefined): FormField[] {
-  if (!template) return [];
+  if (!template) { return []; }
   return template.fields.filter((field) => Boolean(template.field_positions[field.id]));
 }
 

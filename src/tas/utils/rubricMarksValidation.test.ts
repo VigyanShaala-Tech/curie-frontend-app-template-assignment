@@ -5,8 +5,7 @@ import {
 } from './rubricMarksValidation';
 import type { RubricOption } from '../types';
 
-const options = (marks: number[]): RubricOption[] =>
-  marks.map((m, i) => ({ name: `Criteria ${i + 1}`, marks: m }));
+const options = (marks: number[]): RubricOption[] => marks.map((m, i) => ({ name: `Criteria ${i + 1}`, marks: m }));
 
 describe('rubricMarksValidation', () => {
   it('sums criteria marks for a category', () => {

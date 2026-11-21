@@ -92,7 +92,10 @@ export const BackNavigationModal: React.FC<Props> = ({
         <Icon src={Undo} style={{ width: 28, height: 28 }} />
       </span>
       {isMobile ? (
-        <h3 style={{ margin: 0, textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#111827' }}>
+        <h3 style={{
+          margin: 0, textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#111827',
+        }}
+        >
           Oops! Did you press Back by mistake?
         </h3>
       ) : (

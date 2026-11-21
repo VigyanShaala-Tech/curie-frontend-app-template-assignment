@@ -14,7 +14,9 @@ interface Props {
   onManageRubrics: () => void;
 }
 
-export const AdminTemplateList: React.FC<Props> = ({ onEdit, onCreate, onManageTypes, onManageRubrics }) => {
+export const AdminTemplateList: React.FC<Props> = ({
+  onEdit, onCreate, onManageTypes, onManageRubrics,
+}) => {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -35,8 +37,9 @@ export const AdminTemplateList: React.FC<Props> = ({ onEdit, onCreate, onManageT
   });
 
   const toggleMut = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      adminTemplatesApi.toggleActive(id, is_active),
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => (
+      adminTemplatesApi.toggleActive(id, is_active)
+    ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-templates'] }),
   });
 

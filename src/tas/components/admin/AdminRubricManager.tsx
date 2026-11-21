@@ -10,12 +10,14 @@
  * The right panel lists existing rubrics with edit/deactivate actions.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button, Badge, Spinner, Form, Alert,
 } from '@openedx/paragon';
-import { Add, ArrowBack, Close, Edit } from '@openedx/paragon/icons';
+import {
+  Add, ArrowBack, Close, Edit,
+} from '@openedx/paragon/icons';
 import { rubricsApi } from '../../services/api';
 import type { Rubric, RubricCriterion, RubricOption } from '../../types';
 import {
@@ -39,6 +41,17 @@ const EMPTY_CRITERION: RubricCriterion = {
   feedbacks: [],
 };
 
+let rubricRowSeq = 0;
+
+function nextRubricRowKey() {
+  rubricRowSeq += 1;
+  return `rubric-row-${rubricRowSeq}`;
+}
+
+function keysForLength(length: number, existing: string[] = []) {
+  return Array.from({ length }, (_, index) => existing[index] ?? nextRubricRowKey());
+}
+
 function emptyForm() {
   return {
     name: '',
@@ -55,6 +68,27 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const criterionKeys = useRef<string[]>([]);
+  const optionKeys = useRef<string[][]>([]);
+  const feedbackKeys = useRef<string[][]>([]);
+
+  const resetRowKeys = () => {
+    criterionKeys.current = [];
+    optionKeys.current = [];
+    feedbackKeys.current = [];
+  };
+
+  const syncRowKeys = (criteria: RubricCriterion[]) => {
+    criterionKeys.current = keysForLength(criteria.length, criterionKeys.current);
+    optionKeys.current = criteria.map((criterion, index) => keysForLength(
+      criterion.options.length,
+      optionKeys.current[index],
+    ));
+    feedbackKeys.current = criteria.map((criterion, index) => keysForLength(
+      normalizeFeedbacks(criterion.feedbacks).length,
+      feedbackKeys.current[index],
+    ));
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['rubrics-all'],
@@ -62,12 +96,14 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
   });
 
   const saveMut = useMutation({
-    mutationFn: (payload: { name: string; criteria: RubricCriterion[] }) =>
+    mutationFn: (payload: { name: string; criteria: RubricCriterion[] }) => (
       editingId
         ? rubricsApi.update(editingId, payload)
-        : rubricsApi.create(payload),
+        : rubricsApi.create(payload)
+    ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rubrics-all'] });
+      resetRowKeys();
       setForm(emptyForm());
       setEditingId(null);
       setError('');
@@ -82,83 +118,105 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
 
   // ── Criterion helpers ──────────────────────────────────────────────────────
 
-  const setCriterionName = (ci: number, value: string) =>
-    setForm((prev) => {
-      const criteria = prev.criteria.map((c, i) => i === ci ? { ...c, criterion: value } : c);
-      return { ...prev, criteria };
-    });
+  const setCriterionName = (ci: number, value: string) => setForm((prev) => {
+    const criteria = prev.criteria.map((c, i) => (
+      i === ci ? { ...c, criterion: value } : c
+    ));
+    return { ...prev, criteria };
+  });
 
-  const addCriterion = () =>
+  const addCriterion = () => setForm((prev) => ({
+    ...prev,
+    criteria: [...prev.criteria, {
+      ...EMPTY_CRITERION,
+      options: [{ ...EMPTY_OPTION }],
+      feedbacks: [],
+    }],
+  }));
+
+  const removeCriterion = (ci: number) => {
+    criterionKeys.current.splice(ci, 1);
+    optionKeys.current.splice(ci, 1);
+    feedbackKeys.current.splice(ci, 1);
     setForm((prev) => ({
       ...prev,
-      criteria: [...prev.criteria, {
-        ...EMPTY_CRITERION,
-        options: [{ ...EMPTY_OPTION }],
-        feedbacks: [],
-      }],
+      criteria: prev.criteria.filter((_, i) => i !== ci),
     }));
-
-  const removeCriterion = (ci: number) =>
-    setForm((prev) => ({ ...prev, criteria: prev.criteria.filter((_, i) => i !== ci) }));
+  };
 
   // ── Option helpers ────────────────────────────────────────────────────────
 
-  const setOptionField = (ci: number, oi: number, field: keyof RubricOption, value: string | number) =>
+  const setOptionField = (
+    ci: number,
+    oi: number,
+    field: keyof RubricOption,
+    value: string | number,
+  ) => setForm((prev) => {
+    const criteria = prev.criteria.map((c, i) => {
+      if (i !== ci) {
+        return c;
+      }
+      const options = c.options.map((o, j) => (j === oi ? { ...o, [field]: value } : o));
+      return { ...c, options };
+    });
+    return { ...prev, criteria };
+  });
+
+  const addOption = (ci: number) => setForm((prev) => {
+    const criteria = prev.criteria.map((c, i) => (
+      i === ci ? { ...c, options: [...c.options, { ...EMPTY_OPTION }] } : c
+    ));
+    return { ...prev, criteria };
+  });
+
+  const removeOption = (ci: number, oi: number) => {
+    optionKeys.current[ci]?.splice(oi, 1);
     setForm((prev) => {
       const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
-        const options = c.options.map((o, j) => j === oi ? { ...o, [field]: value } : o);
-        return { ...c, options };
-      });
-      return { ...prev, criteria };
-    });
-
-  const addOption = (ci: number) =>
-    setForm((prev) => {
-      const criteria = prev.criteria.map((c, i) =>
-        i === ci ? { ...c, options: [...c.options, { ...EMPTY_OPTION }] } : c,
-      );
-      return { ...prev, criteria };
-    });
-
-  const removeOption = (ci: number, oi: number) =>
-    setForm((prev) => {
-      const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
+        if (i !== ci) {
+          return c;
+        }
         return { ...c, options: c.options.filter((_, j) => j !== oi) };
       });
       return { ...prev, criteria };
     });
+  };
 
   // ── Feedbacks helpers (category-scoped, independent of options) ─────────
 
-  const setFeedbackText = (ci: number, fi: number, value: string) =>
-    setForm((prev) => {
-      const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
-        const feedbacks = normalizeFeedbacks(c.feedbacks).map((fb, j) => (j === fi ? value : fb));
-        return { ...c, feedbacks };
-      });
-      return { ...prev, criteria };
+  const setFeedbackText = (ci: number, fi: number, value: string) => setForm((prev) => {
+    const criteria = prev.criteria.map((c, i) => {
+      if (i !== ci) {
+        return c;
+      }
+      const feedbacks = normalizeFeedbacks(c.feedbacks).map((fb, j) => (j === fi ? value : fb));
+      return { ...c, feedbacks };
     });
+    return { ...prev, criteria };
+  });
 
-  const addFeedback = (ci: number) =>
-    setForm((prev) => {
-      const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
-        return { ...c, feedbacks: [...normalizeFeedbacks(c.feedbacks), ''] };
-      });
-      return { ...prev, criteria };
+  const addFeedback = (ci: number) => setForm((prev) => {
+    const criteria = prev.criteria.map((c, i) => {
+      if (i !== ci) {
+        return c;
+      }
+      return { ...c, feedbacks: [...normalizeFeedbacks(c.feedbacks), ''] };
     });
+    return { ...prev, criteria };
+  });
 
-  const removeFeedback = (ci: number, fi: number) =>
+  const removeFeedback = (ci: number, fi: number) => {
+    feedbackKeys.current[ci]?.splice(fi, 1);
     setForm((prev) => {
       const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
+        if (i !== ci) {
+          return c;
+        }
         return { ...c, feedbacks: normalizeFeedbacks(c.feedbacks).filter((_, j) => j !== fi) };
       });
       return { ...prev, criteria };
     });
+  };
 
   const handleFeedbackPaste = (ci: number, fi: number, pastedText: string) => {
     if (!/\r|\n/.test(pastedText)) {
@@ -170,10 +228,16 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
     }
     setForm((prev) => {
       const criteria = prev.criteria.map((c, i) => {
-        if (i !== ci) return c;
+        if (i !== ci) {
+          return c;
+        }
         const feedbacks = [...normalizeFeedbacks(c.feedbacks)];
-        feedbacks[fi] = lines[0];
-        feedbacks.splice(fi + 1, 0, ...lines.slice(1));
+        const [firstLine, ...moreLines] = lines;
+        const insertedKeys = moreLines.map(() => nextRubricRowKey());
+        feedbackKeys.current[ci] = feedbackKeys.current[ci] ?? [];
+        feedbackKeys.current[ci].splice(fi + 1, 0, ...insertedKeys);
+        feedbacks[fi] = firstLine ?? '';
+        feedbacks.splice(fi + 1, 0, ...moreLines);
         return { ...c, feedbacks };
       });
       return { ...prev, criteria };
@@ -184,12 +248,24 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = () => {
-    if (!form.name.trim()) { setError('Rubric name is required.'); return; }
+    if (!form.name.trim()) {
+      setError('Rubric name is required.');
+      return;
+    }
     for (const [ci, c] of form.criteria.entries()) {
-      if (!c.criterion.trim()) { setError(`Category ${ci + 1} needs a name.`); return; }
-      if (c.options.length === 0) { setError(`Category "${c.criterion}" needs at least one criterion.`); return; }
+      if (!c.criterion.trim()) {
+        setError(`Category ${ci + 1} needs a name.`);
+        return;
+      }
+      if (c.options.length === 0) {
+        setError(`Category "${c.criterion}" needs at least one criterion.`);
+        return;
+      }
       for (const o of c.options) {
-        if (!o.name.trim()) { setError(`All criteria in "${c.criterion}" need a name.`); return; }
+        if (!o.name.trim()) {
+          setError(`All criteria in "${c.criterion}" need a name.`);
+          return;
+        }
       }
     }
     if (hasInvalidCategoryMarks(form.criteria)) {
@@ -205,6 +281,7 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
   };
 
   const startEdit = (r: Rubric) => {
+    resetRowKeys();
     setEditingId(r.id);
     setForm({
       name: r.name,
@@ -219,12 +296,32 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
 
   const cancelEdit = () => {
     setEditingId(null);
+    resetRowKeys();
     setForm(emptyForm());
     setError('');
   };
 
   const rubrics = data?.results ?? [];
   const categoryMarksInvalid = hasInvalidCategoryMarks(form.criteria);
+  syncRowKeys(form.criteria);
+  const criteriaRows = form.criteria.map((criterion, index) => ({
+    criterion,
+    rowKey: criterionKeys.current[index],
+    optionRows: criterion.options.map((option, optionIndex) => ({
+      option,
+      rowKey: optionKeys.current[index][optionIndex],
+    })),
+    feedbackRows: normalizeFeedbacks(criterion.feedbacks).map((feedback, feedbackIndex) => ({
+      feedback,
+      rowKey: feedbackKeys.current[index][feedbackIndex],
+    })),
+  }));
+  let saveLabel = 'Create Rubric';
+  if (saveMut.isPending) {
+    saveLabel = '';
+  } else if (editingId) {
+    saveLabel = 'Save Changes';
+  }
 
   return (
     <div className="d-flex flex-column">
@@ -248,9 +345,7 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
             <Form.Control
               size="sm"
               value={form.name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((p) => ({ ...p, name: e.target.value }))
-              }
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="e.g. Essay Rubric"
             />
           </Form.Group>
@@ -262,135 +357,156 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
             </Button>
           </div>
 
-          {form.criteria.map((criterion, ci) => {
+          {criteriaRows.map((row, ci) => {
+            const { criterion } = row;
             const marksValidation = validateCategoryMarks(criterion.options);
 
             return (
-            <div
-              key={ci}
-              className="mb-3 p-3 rounded border"
-              style={{ background: '#f8f9fa' }}
-            >
-              <div className="d-flex align-items-center mb-2" style={{ gap: '0.5rem' }}>
-                <Form.Control
-                  size="sm"
-                  value={criterion.criterion}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setCriterionName(ci, e.target.value)
-                  }
-                  placeholder={`Category ${ci + 1} name`}
-                  style={{ flex: 1 }}
-                />
-                {form.criteria.length > 1 && (
-                  <Button
-                    variant="tertiary"
-                    size="sm"
-                    iconBefore={Close}
-                    onClick={() => removeCriterion(ci)}
-                    className="text-danger"
-                  >
-                    {' '}
-                  </Button>
-                )}
-              </div>
-
-              {/* Options */}
-              <div className="mb-2">
-                {criterion.options.map((opt, oi) => (
-                  <div key={oi} className="d-flex align-items-center mb-1" style={{ gap: '0.4rem' }}>
-                    <Form.Control
-                      size="sm"
-                      value={opt.name}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setOptionField(ci, oi, 'name', e.target.value)
-                      }
-                      placeholder="Criteria label"
-                      style={{ flex: 2 }}
-                    />
-                    <Form.Control
-                      size="sm"
-                      type="number"
-                      min={0}
-                      value={opt.marks}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setOptionField(ci, oi, 'marks', Number(e.target.value))
-                      }
-                      placeholder="Marks"
-                      style={{ flex: 1 }}
-                    />
-                    {criterion.options.length > 1 && (
-                      <Button
-                        variant="tertiary"
-                        size="sm"
-                        iconBefore={Close}
-                        onClick={() => removeOption(ci, oi)}
-                        className="text-muted"
-                      >
-                        {' '}
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
               <div
-                className={`small mt-1 ${marksValidation.isValid ? 'text-success' : 'text-muted'}`}
+                key={row.rowKey}
+                className="mb-3 p-3 rounded border"
+                style={{ background: '#f8f9fa' }}
               >
-                Category Total:
-                {' '}
-                {marksValidation.total}
-                {' '}
-                / 10
-              </div>
-              {marksValidation.error && (
-                <div className="small text-danger mt-1">{marksValidation.error}</div>
-              )}
-
-              <Button variant="tertiary" size="sm" iconBefore={Add} onClick={() => addOption(ci)} className="mt-2">
-                <span style={{ fontSize: 12 }}>Add Criteria</span>
-              </Button>
-
-              <div className="border-top mt-3 pt-3">
-                <div className="mb-2">
-                  <span className="small font-weight-bold">Feedback</span>
-                </div>
-
-                {normalizeFeedbacks(criterion.feedbacks).map((fb, fi) => (
-                  <div key={fi} className="d-flex align-items-start mb-2" style={{ gap: '0.4rem' }}>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      size="sm"
-                      value={fb}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                        setFeedbackText(ci, fi, e.target.value)
-                      }
-                      onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-                        const pasted = e.clipboardData.getData('text');
-                        if (handleFeedbackPaste(ci, fi, pasted)) {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="Predefined feedback text"
-                      style={{ flex: 1 }}
-                    />
+                <div className="d-flex align-items-center mb-2" style={{ gap: '0.5rem' }}>
+                  <Form.Control
+                    size="sm"
+                    value={criterion.criterion}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCriterionName(ci, e.target.value)}
+                    placeholder={`Category ${ci + 1} name`}
+                    style={{ flex: 1 }}
+                  />
+                  {form.criteria.length > 1 && (
                     <Button
                       variant="tertiary"
                       size="sm"
                       iconBefore={Close}
-                      onClick={() => removeFeedback(ci, fi)}
-                      className="text-muted"
+                      onClick={() => removeCriterion(ci)}
+                      className="text-danger"
                     >
                       {' '}
                     </Button>
-                  </div>
-                ))}
+                  )}
+                </div>
 
-                <Button variant="tertiary" size="sm" iconBefore={Add} onClick={() => addFeedback(ci)}>
-                  <span style={{ fontSize: 12 }}>Add Feedback</span>
+                {/* Options */}
+                <div className="mb-2">
+                  {row.optionRows.map((optionRow, oi) => {
+                    const { option: opt } = optionRow;
+                    return (
+                      <div
+                        key={optionRow.rowKey}
+                        className="d-flex align-items-center mb-1"
+                        style={{ gap: '0.4rem' }}
+                      >
+                        <Form.Control
+                          size="sm"
+                          value={opt.name}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOptionField(
+                            ci,
+                            oi,
+                            'name',
+                            e.target.value,
+                          )}
+                          placeholder="Criteria label"
+                          style={{ flex: 2 }}
+                        />
+                        <Form.Control
+                          size="sm"
+                          type="number"
+                          min={0}
+                          value={opt.marks}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOptionField(
+                            ci,
+                            oi,
+                            'marks',
+                            Number(e.target.value),
+                          )}
+                          placeholder="Marks"
+                          style={{ flex: 1 }}
+                        />
+                        {criterion.options.length > 1 && (
+                          <Button
+                            variant="tertiary"
+                            size="sm"
+                            iconBefore={Close}
+                            onClick={() => removeOption(ci, oi)}
+                            className="text-muted"
+                          >
+                            {' '}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  className={`small mt-1 ${marksValidation.isValid ? 'text-success' : 'text-muted'}`}
+                >
+                  Category Total:
+                  {' '}
+                  {marksValidation.total}
+                  {' '}
+                  / 10
+                </div>
+                {marksValidation.error && (
+                  <div className="small text-danger mt-1">{marksValidation.error}</div>
+                )}
+
+                <Button variant="tertiary" size="sm" iconBefore={Add} onClick={() => addOption(ci)} className="mt-2">
+                  <span style={{ fontSize: 12 }}>Add Criteria</span>
                 </Button>
+
+                <div className="border-top mt-3 pt-3">
+                  <div className="mb-2">
+                    <span className="small font-weight-bold">Feedback</span>
+                  </div>
+
+                  {row.feedbackRows.map((feedbackRow, fi) => {
+                    const { feedback: fb } = feedbackRow;
+                    return (
+                      <div
+                        key={feedbackRow.rowKey}
+                        className="d-flex align-items-start mb-2"
+                        style={{ gap: '0.4rem' }}
+                      >
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          size="sm"
+                          value={fb}
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedbackText(
+                            ci,
+                            fi,
+                            e.target.value,
+                          )}
+                          onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+                            const pasted = e.clipboardData.getData('text');
+                            if (handleFeedbackPaste(ci, fi, pasted)) {
+                              e.preventDefault();
+                            }
+                          }}
+                          placeholder="Predefined feedback text"
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          variant="tertiary"
+                          size="sm"
+                          iconBefore={Close}
+                          onClick={() => removeFeedback(ci, fi)}
+                          className="text-muted"
+                        >
+                          {' '}
+                        </Button>
+                      </div>
+                    );
+                  })}
+
+                  <Button variant="tertiary" size="sm" iconBefore={Add} onClick={() => addFeedback(ci)}>
+                    <span style={{ fontSize: 12 }}>Add Feedback</span>
+                  </Button>
+                </div>
               </div>
-            </div>
             );
           })}
 
@@ -402,9 +518,10 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
               onClick={handleSubmit}
               disabled={saveMut.isPending || categoryMarksInvalid}
             >
-              {saveMut.isPending
-                ? <Spinner animation="border" size="sm" screenReaderText="Saving" />
-                : editingId ? 'Save Changes' : 'Create Rubric'}
+              {saveMut.isPending && (
+                <Spinner animation="border" size="sm" screenReaderText="Saving" />
+              )}
+              {saveLabel}
             </Button>
             {editingId && (
               <Button variant="tertiary" size="sm" iconBefore={Close} onClick={cancelEdit}>
@@ -455,7 +572,9 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
                     iconBefore={Close}
                     className="text-danger"
                     onClick={() => {
-                      if (window.confirm(`Deactivate rubric "${r.name}"?`)) deleteMut.mutate(r.id);
+                      if (window.confirm(`Deactivate rubric "${r.name}"?`)) {
+                        deleteMut.mutate(r.id);
+                      }
                     }}
                     disabled={deleteMut.isPending || !r.is_active}
                   >
@@ -463,17 +582,39 @@ export const AdminRubricManager: React.FC<Props> = ({ onBack }) => {
                   </Button>
                 </div>
 
-                {r.criteria.map((c, ci) => (
-                  <div key={ci} className="mb-1" style={{ fontSize: 12 }}>
-                    <span className="font-weight-bold text-muted">{c.criterion}: </span>
-                    {c.options.map((o, oi) => (
-                      <span key={oi} className="mr-2">
-                        {o.name} <span className="text-muted">({o.marks} pts)</span>
-                        {oi < c.options.length - 1 && ' · '}
-                      </span>
-                    ))}
-                  </div>
-                ))}
+                {(() => {
+                  const seenCriteria = new Map<string, number>();
+                  return r.criteria.map((c) => {
+                    const optionParts = c.options.map((o) => `${o.name}:${o.marks}`);
+                    const criterionIdentity = `${c.criterion}|${optionParts.join(',')}`;
+                    const criterionCopy = seenCriteria.get(criterionIdentity) ?? 0;
+                    seenCriteria.set(criterionIdentity, criterionCopy + 1);
+                    const seenOptions = new Map<string, number>();
+                    return (
+                      <div
+                        key={`${r.id}-criterion-${criterionIdentity}-${criterionCopy}`}
+                        className="mb-1"
+                        style={{ fontSize: 12 }}
+                      >
+                        <span className="font-weight-bold text-muted">{c.criterion}: </span>
+                        {c.options.map((o, oi) => {
+                          const optionIdentity = `${o.name}:${o.marks}`;
+                          const optionCopy = seenOptions.get(optionIdentity) ?? 0;
+                          seenOptions.set(optionIdentity, optionCopy + 1);
+                          return (
+                            <span
+                              key={`${r.id}-option-${criterionIdentity}-${optionIdentity}-${optionCopy}`}
+                              className="mr-2"
+                            >
+                              {o.name} <span className="text-muted">({o.marks} pts)</span>
+                              {oi < c.options.length - 1 && ' · '}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             ))}
           </div>

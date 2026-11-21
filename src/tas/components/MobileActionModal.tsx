@@ -25,12 +25,21 @@ export const MobileActionModal: React.FC<Props> = ({
   onClose,
   children,
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen) { return null; }
 
   return (
     <div
       role="presentation"
-      onClick={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          onClose();
+        }
+      }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -47,7 +56,6 @@ export const MobileActionModal: React.FC<Props> = ({
         role="dialog"
         aria-label={title}
         aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
           width: '86vw',

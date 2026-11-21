@@ -23,7 +23,6 @@ import {
   learnerVerdictLabel,
   orderFieldFeedback,
 } from '../utils/curieReview';
-import { hasMissingRequiredFields } from '../utils/activeFields';
 import type { DisplayState } from '../lifecycle/deriveLifecycle';
 import type {
   LearnerCurieReview,
@@ -231,7 +230,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
     </button>
   );
 
-  const submitBlocked = isSaving || hasMissingRequiredFields(template, draft);
+  const submitBlocked = isSaving;
 
   let leftActions: React.ReactNode = null;
   if (editing) {
@@ -357,9 +356,7 @@ export const CurieReviewScreen: React.FC<Props> = ({
                   className="curie-edit-form"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    if (!hasMissingRequiredFields(template, draft)) {
-                      onRequestSubmit(draft);
-                    }
+                    onRequestSubmit(draft);
                   }}
                 >
                   <AssignmentForm

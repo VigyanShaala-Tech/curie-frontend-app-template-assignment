@@ -113,40 +113,40 @@ export const SubmissionHistory: React.FC<Props> = ({
   const timestampLabel = showFeedbackStatus ? 'Submitted At' : 'Saved At';
 
   return (
-  <Card className="shadow-sm">
-    <Card.Header title={title} />
-    <Card.Section>
-      {versions.length === 0 ? (
-        <p className="text-muted small mb-0">No submission history yet.</p>
-      ) : (
-        <div className="tas-submission-history">
-          <table className="tas-submission-history-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                <th style={thStyle}>{timestampLabel}</th>
-                {showFieldCount && <th style={thStyle}>Fields</th>}
-                {showFeedbackStatus && <th style={thStyle}>Submission Status</th>}
-                {showPdfColumn && <th style={thStyle}>PDF</th>}
-                {showViewFeedback && <th style={thStyle}>Feedback</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((v) => {
-                const pdfUrl = v.pdf_url || v.download_url || null;
-                return (
-                  <tr key={v.version_number} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }} data-label={timestampLabel}>
-                      {formatTimestamp(v)}
-                    </td>
-                    {showFieldCount && (
+    <Card className="shadow-sm">
+      <Card.Header title={title} />
+      <Card.Section>
+        {versions.length === 0 ? (
+          <p className="text-muted small mb-0">No submission history yet.</p>
+        ) : (
+          <div className="tas-submission-history">
+            <table className="tas-submission-history-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #dee2e6' }}>
+                  <th style={thStyle}>{timestampLabel}</th>
+                  {showFieldCount && <th style={thStyle}>Fields</th>}
+                  {showFeedbackStatus && <th style={thStyle}>Submission Status</th>}
+                  {showPdfColumn && <th style={thStyle}>PDF</th>}
+                  {showViewFeedback && <th style={thStyle}>Feedback</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {versions.map((v) => {
+                  const pdfUrl = v.pdf_url || v.download_url || null;
+                  return (
+                    <tr key={v.version_number} style={{ borderBottom: '1px solid #dee2e6' }}>
+                      <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }} data-label={timestampLabel}>
+                        {formatTimestamp(v)}
+                      </td>
+                      {showFieldCount && (
                       <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.85rem' }} data-label="Fields">
                         {Object.keys(v.form_data ?? {}).length} field(s)
                       </td>
-                    )}
-                    {showFeedbackStatus && (
+                      )}
+                      {showFeedbackStatus && (
                       <td style={tdStyle} data-label="Submission Status">{feedbackStatusCell(v)}</td>
-                    )}
-                    {showPdfColumn && (
+                      )}
+                      {showPdfColumn && (
                       <td style={tdStyle} data-label="PDF">
                         {pdfUrl ? (
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -162,7 +162,7 @@ export const SubmissionHistory: React.FC<Props> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                void downloadPdf(pdfUrl, `${pdfFilenamePrefix}_v${v.version_number}.pdf`);
+                                downloadPdf(pdfUrl, `${pdfFilenamePrefix}_v${v.version_number}.pdf`);
                               }}
                               style={pdfBtnStyle}
                             >
@@ -173,8 +173,8 @@ export const SubmissionHistory: React.FC<Props> = ({
                           <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>—</span>
                         )}
                       </td>
-                    )}
-                    {showViewFeedback && (
+                      )}
+                      {showViewFeedback && (
                       <td style={tdStyle} data-label="Feedback">
                         <button
                           type="button"
@@ -189,15 +189,15 @@ export const SubmissionHistory: React.FC<Props> = ({
                           View Feedback
                         </button>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card.Section>
-  </Card>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card.Section>
+    </Card>
   );
 };

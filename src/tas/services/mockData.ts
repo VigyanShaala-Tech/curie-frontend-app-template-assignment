@@ -55,16 +55,32 @@ export const MOCK_TEMPLATES: Template[] = [
     image_height: 1123,
     thumbnail_url: 'https://placehold.co/300x424/f8f8f8/cccccc?text=Biology+Lab+Report',
     fields: [
-      { id: 'f1', label: 'Student Name', type: 'text', required: true, placeholder: 'Enter your full name' },
-      { id: 'f2', label: 'Hypothesis', type: 'textarea', required: true, placeholder: 'Write your hypothesis here...' },
-      { id: 'f3', label: 'Outcome', type: 'select', required: false, options: ['Pass', 'Fail', 'Inconclusive'] },
-      { id: 'f4', label: 'Date', type: 'date', required: true },
+      {
+        id: 'f1', label: 'Student Name', type: 'text', required: true, placeholder: 'Enter your full name',
+      },
+      {
+        id: 'f2', label: 'Hypothesis', type: 'textarea', required: true, placeholder: 'Write your hypothesis here...',
+      },
+      {
+        id: 'f3', label: 'Outcome', type: 'select', required: false, options: ['Pass', 'Fail', 'Inconclusive'],
+      },
+      {
+        id: 'f4', label: 'Date', type: 'date', required: true,
+      },
     ],
     field_positions: {
-      f1: { x: 10.5, y: 8.2, width: 40.0, height: 4.0 },
-      f2: { x: 10.5, y: 20.0, width: 80.0, height: 15.0 },
-      f3: { x: 10.5, y: 60.0, width: 30.0, height: 4.0 },
-      f4: { x: 55.0, y: 8.2, width: 30.0, height: 4.0 },
+      f1: {
+        x: 10.5, y: 8.2, width: 40.0, height: 4.0,
+      },
+      f2: {
+        x: 10.5, y: 20.0, width: 80.0, height: 15.0,
+      },
+      f3: {
+        x: 10.5, y: 60.0, width: 30.0, height: 4.0,
+      },
+      f4: {
+        x: 55.0, y: 8.2, width: 30.0, height: 4.0,
+      },
     },
     is_public: true,
     is_active: true,
@@ -83,16 +99,32 @@ export const MOCK_TEMPLATES: Template[] = [
     image_height: 1123,
     thumbnail_url: 'https://placehold.co/300x424/f0f4ff/9999cc?text=Physics+Worksheet',
     fields: [
-      { id: 'g1', label: 'Student Name', type: 'text', required: true },
-      { id: 'g2', label: 'Question 1 Answer', type: 'textarea', required: true },
-      { id: 'g3', label: 'Question 2 Answer', type: 'textarea', required: true },
-      { id: 'g4', label: 'Score', type: 'number', required: false },
+      {
+        id: 'g1', label: 'Student Name', type: 'text', required: true,
+      },
+      {
+        id: 'g2', label: 'Question 1 Answer', type: 'textarea', required: true,
+      },
+      {
+        id: 'g3', label: 'Question 2 Answer', type: 'textarea', required: true,
+      },
+      {
+        id: 'g4', label: 'Score', type: 'number', required: false,
+      },
     ],
     field_positions: {
-      g1: { x: 10, y: 10, width: 50, height: 4 },
-      g2: { x: 10, y: 25, width: 80, height: 12 },
-      g3: { x: 10, y: 50, width: 80, height: 12 },
-      g4: { x: 70, y: 80, width: 20, height: 4 },
+      g1: {
+        x: 10, y: 10, width: 50, height: 4,
+      },
+      g2: {
+        x: 10, y: 25, width: 80, height: 12,
+      },
+      g3: {
+        x: 10, y: 50, width: 80, height: 12,
+      },
+      g4: {
+        x: 70, y: 80, width: 20, height: 4,
+      },
     },
     is_public: true,
     is_active: true,
@@ -167,7 +199,7 @@ export const MOCK_BLOCK_RUBRICS: BlockRubricsResponse = {
 export const submissionStore: Record<string, Submission> = {};
 export const versionStore: Record<string, SubmissionVersion[]> = {};
 let submissionCounter = 1;
-let versionCounter: Record<string, number> = {};
+const versionCounter: Record<string, number> = {};
 
 export function makeSubmissionId() {
   return `sub-${submissionCounter++}`;

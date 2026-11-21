@@ -18,7 +18,7 @@ const layout: FieldLayoutMetrics = {
 describe('textFitsInField', () => {
   afterEach(() => {
     const probe = document.getElementById('tas-field-fit-probe');
-    if (probe) probe.remove();
+    if (probe) { probe.remove(); }
   });
 
   it('returns true for empty text', () => {

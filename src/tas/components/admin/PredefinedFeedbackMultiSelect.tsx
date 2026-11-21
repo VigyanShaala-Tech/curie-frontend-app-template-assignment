@@ -60,6 +60,9 @@ export const PredefinedFeedbackMultiSelect: React.FC<Props> = ({
             orderedSelected.map((feedback) => (
               <span
                 key={`${controlId}-chip-${feedback}`}
+                role="toolbar"
+                tabIndex={-1}
+                aria-label={feedback}
                 className="tas-feedback-multiselect__chip"
                 onClick={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}

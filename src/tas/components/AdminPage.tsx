@@ -15,7 +15,8 @@ export const AdminPage: React.FC = () => {
   const mfeContext = useTasStore((s) => s.mfeContext);
 
   useEffect(() => {
-    const injected = (window as any).__TAS_CONTEXT__;
+    const tasContextKey = '__TAS_CONTEXT__';
+    const injected = (window as any)[tasContextKey];
     const user = getAuthenticatedUser();
     const params = new URLSearchParams(window.location.search);
 
@@ -31,7 +32,7 @@ export const AdminPage: React.FC = () => {
     });
   }, [setMfeContext]);
 
-  if (!mfeContext) return null;
+  if (!mfeContext) { return null; }
 
   return <AdminApp />;
 };

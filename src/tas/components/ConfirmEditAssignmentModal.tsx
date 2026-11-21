@@ -15,8 +15,7 @@ import { MobileActionModal } from './MobileActionModal';
 const SUBMIT_GREEN = '#69AB4A';
 const WARNING_AMBER = '#f59e0b';
 
-export const EDIT_ASSIGNMENT_CONFIRM_MESSAGE =
-  'Editing will let you revise your answers and resubmit for a new review. Continue?';
+export const EDIT_ASSIGNMENT_CONFIRM_MESSAGE = 'Editing will let you revise your answers and resubmit for a new review. Continue?';
 
 interface Props {
   isOpen: boolean;
@@ -136,13 +135,22 @@ export const ConfirmEditAssignmentModal: React.FC<Props> = ({
         title="Edit this assignment?"
         onClose={onClose}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
+        }}
+        >
           {titleIcon}
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
+          <h3 style={{
+            margin: 0, fontSize: 16, fontWeight: 700, color: '#111827',
+          }}
+          >
             Edit this assignment?
           </h3>
         </div>
-        <p style={{ margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>
+        <p style={{
+          margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5,
+        }}
+        >
           {EDIT_ASSIGNMENT_CONFIRM_MESSAGE}
         </p>
         {footerButtons}
@@ -160,7 +168,10 @@ export const ConfirmEditAssignmentModal: React.FC<Props> = ({
       isOverflowVisible={false}
     >
       <ModalDialog.Header>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, paddingRight: 8,
+        }}
+        >
           {titleIcon}
           <ModalDialog.Title style={{ margin: 0 }}>Edit this assignment?</ModalDialog.Title>
         </div>
@@ -168,7 +179,10 @@ export const ConfirmEditAssignmentModal: React.FC<Props> = ({
 
       <ModalDialog.Body>
         <div style={{ maxWidth: 560, paddingBottom: 4 }}>
-          <p style={{ margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>
+          <p style={{
+            margin: 0, color: '#6b7280', fontSize: 14, lineHeight: 1.5,
+          }}
+          >
             {EDIT_ASSIGNMENT_CONFIRM_MESSAGE}
           </p>
         </div>
